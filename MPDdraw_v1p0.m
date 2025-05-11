@@ -1,3 +1,8 @@
+%%
+find all files with form as MPDxxx.mat
+plot and calculate responsitivity and linearity of them
+%%
+
 % 清除工作区和关闭所有图形窗口
 clear all;
 close all;
