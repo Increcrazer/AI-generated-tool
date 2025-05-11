@@ -1,8 +1,7 @@
-%%
-input: s1,s2,s3 of two bloch vectors
-output: angle between them
-%%
 function angle_between_polarization_states()
+    % input: s1,s2,s3 of two bloch vectors
+    % output: angle between them
+    
     % 输入第一个偏振态的斯托克斯参数 [S1, S2, S3]
     S_input1 = input('请输入第一个偏振态的斯托克斯参数 [S1, S2, S3]（例如：[1, 0, 0]）: ');
     S1 = S_input1(:);  % 确保是列向量
