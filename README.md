@@ -14,5 +14,6 @@
 根据“编码关系.xlsx”中的码字映射关系，将xx_raw.txt中的源码转换成各个GTX通道的输出，“编码关系.xlsx”格式如下：
 ![image](https://github.com/user-attachments/assets/38bfde6d-6d3f-43f4-bed5-fb7b7fd28fe2)
 输出格式如下：
-![image](https://github.com/user-attachments/assets/a1faf027-dd50-4d0c-8972-d3f851ba34bc)
+![image](https://github.com/user-attachments/assets/c791ec6b-51db-48de-943f-8977f116ea69)
+
 
