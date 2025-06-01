@@ -21,7 +21,7 @@
 输出格式如下：
 
 ![image](https://github.com/user-attachments/assets/c791ec6b-51db-48de-943f-8977f116ea69)
-### IQ_core.m phase_modulation_gui.m
+## IQ_core.m phase_modulation_gui.m
 各个组件连接和命名如下：
 
 ![image](https://github.com/user-attachments/assets/6872bb0a-4969-4c9c-9558-39d554fedf80)
