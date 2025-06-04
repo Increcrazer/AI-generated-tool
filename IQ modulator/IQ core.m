@@ -1,4 +1,3 @@
-%% 2to2 IQ in layout
 function Eo = layout_IQ(IQ_IN, R, IQ_fai0, ...
 up_fai0, I_RF_phi, PS2_fai, ...
 down_fai0, Q_RF_phi, PS3_fai, ...
@@ -38,9 +37,16 @@ function [Eo1,Eo2] = MZI(Ein1,Ein2,R,fai0,CDM_fai1,CDM_fai2,PS_fai1,PS_fai2,k,b)
     [Eo1,Eo2] = BS(R,E5,E6);
 end
 
-%% 2to2 BS
+%% 2to2 BS (MMI)
 function [Eo1,Eo2] = BS(R,Ein1,Ein2)
     T = 1-R;
     Eo1 = 1i*sqrt(R)*Ein1 + sqrt(T)*Ein2;
-    Eo2 =  sqrt(T)*Ein1 + 1i*sqrt(R)*Ein2;
+    Eo2 = sqrt(T)*Ein1 + 1i*sqrt(R)*Ein2;
 end
+
+% %% 2to2 BS (Y branch)
+% function [Eo1,Eo2] = BS(R,Ein1,Ein2)
+%     T = 1-R;
+%     Eo1 = sqrt(R)*Ein1 + sqrt(T)*Ein2;
+%     Eo2 = sqrt(T)*Ein1 - sqrt(R)*Ein2;
+% end
