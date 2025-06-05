@@ -1,6 +1,9 @@
 function find_IQ_phase_method()
-    % 一种找到I和Q消光点的迭代算法，收敛速度似乎是指数级，但是精度较差
-    % 这个算法也可能只是让I路和Q路相位相同，有待研究
+    % 一种找到I和Q消光点的迭代算法
+    % step 1收敛有可能出问题
+    % 加上step 2精度更高
+    
+    % step 1可能只是让I路和Q路相位相同，有待研究
     
     % 主函数封装所有变量
     % 初始参数设置
@@ -30,7 +33,7 @@ function find_IQ_phase_method()
     % 存储结果
     results = zeros(num_iterations, 4); % PS2, PS3, PS5, Power
 
-    % 优化循环
+    % step1:优化循环
     for iter = 1:num_iterations       
         % 扫描PS2_fai
         [PS2_fai, ~] = scan_phase_min(PS2_fai, PS3_fai, PS5_fai, ...
@@ -52,9 +55,29 @@ function find_IQ_phase_method()
         % 存储结果
         results(iter,:) = [PS2_fai, PS3_fai, PS5_fai, PS5_max_power];
     end
-
+    % PS3设置为step1消光，寻找PS2通光点
+    [PS2_fai_open, ~] = scan_phase_max(PS2_fai, PS3_fai, PS5_fai, ...
+                                     IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
+                                     I_RF_phi, Q_RF_phi, k, b, 'PS2');
+    % PS2设置为step1消光，寻找PS3通光点
+    [PS3_fai_open, ~] = scan_phase_max(PS2_fai, PS3_fai, PS5_fai, ...
+                                     IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
+                                     I_RF_phi, Q_RF_phi, k, b, 'PS3');  
+    % PS2、PS3设置为通光点，寻找PS5通光点
+    [PS5_fai_open, ~] = scan_phase_max(PS2_fai_open, PS3_fai_open, PS5_fai, ...
+                                     IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
+                                     I_RF_phi, Q_RF_phi, k, b, 'PS5');  
+    % PS5、PS3设置为通光点，寻找PS2消光点
+    [PS2_fai_close, ~] = scan_phase_min(PS2_fai, PS3_fai_open, PS5_fai_open, ...
+                                     IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
+                                     I_RF_phi, Q_RF_phi, k, b, 'PS2');    
+    % PS5、PS2设置为通光点，寻找PS3消光点
+    [PS3_fai_close, ~] = scan_phase_min(PS2_fai_open, PS3_fai, PS5_fai_open, ...
+                                 IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
+                                 I_RF_phi, Q_RF_phi, k, b, 'PS3');    
+    
     % 显示最终结果
-    disp('Final Results:');
+    disp('Step1 Results:');
     disp('Iteration  PS2_fai(rad)  PS3_fai(rad)  PS5_fai(rad)  PS2_fai+up_fai0(rad)  PS3_fai+down_fai0(rad)  PS5_fai+IQ_fai0(rad)  Power');
     disp('------------------------------------------------------------------------------------------------------------------------------');
     for i = 1:size(results,1)
@@ -63,13 +86,19 @@ function find_IQ_phase_method()
             mod(results(i,2) + down_fai0,2*pi), mod(results(i,3) + IQ_fai0,2*pi), results(i,4));
     end
     disp('------------------------------------------------------------------------------------------------------------------------------');
+    disp('Step2 Results:');
+    disp('------------------------------------------------------------------------');
+    disp('PS2_fai(rad)  PS3_fai(rad)  PS2_fai+up_fai0(rad)  PS3_fai+down_fai0(rad)');
+    fprintf('%8.4f %14.4f %20.4f %20.4f\n', ...
+        mod(PS2_fai_close,2*pi), mod(PS3_fai_close,2*pi), mod(PS2_fai_close + up_fai0,2*pi), mod(PS3_fai_close + down_fai0,2*pi));
+    disp('------------------------------------------------------------------------');
 end
 
 % 辅助函数：相位扫描
 function [best_phase, min_power] = scan_phase_min(PS2, PS3, PS5, ...
                                              IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
                                              I_RF_phi, Q_RF_phi, k, b, target)
-    phase_points = linspace(0, 2*pi, 100); % 扫描100个点
+    phase_points = linspace(0, 2*pi, 1000); % 扫描100个点
     min_power = inf;
     best_phase = eval(target); % 获取当前目标相位值
     
