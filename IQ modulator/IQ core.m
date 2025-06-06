@@ -44,6 +44,7 @@ function [Eo1,Eo2] = BS(R,Ein1,Ein2)
     Eo2 = sqrt(T)*Ein1 + 1i*sqrt(R)*Ein2;
 end
 
+% % 更换需要注意改MZI和IQ输出端口
 % %% 2to2 BS (Y branch)
 % function [Eo1,Eo2] = BS(R,Ein1,Ein2)
 %     T = 1-R;
