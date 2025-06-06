@@ -15,9 +15,9 @@ function phase_modulation_gui
     set(fig, 'UserData', gui_data);
     
     % 创建滑块和标签（调整了垂直位置）
-    create_slider(fig, 'IQ_fai0', 'IQ相位 (IQ_fai0)', 0, 2*pi, 0, 0.01, [0.1, 0.80, 0.8, 0.03]);
-    create_slider(fig, 'up_fai0', '上臂相位 (up_fai0)', 0, 2*pi, 0, 0.01, [0.1, 0.70, 0.8, 0.03]);
-    create_slider(fig, 'down_fai0', '下臂相位 (down_fai0)', 0, 2*pi, 0, 0.01, [0.1, 0.60, 0.8, 0.03]);
+    create_slider(fig, 'IQ_fai0', 'IQ相位 (IQ_fai0)', 0, 2*pi, 0, 0.0015, [0.1, 0.80, 0.8, 0.03]);
+    create_slider(fig, 'up_fai0', '上臂相位 (up_fai0)', 0, 2*pi, 0, 0.0015, [0.1, 0.70, 0.8, 0.03]);
+    create_slider(fig, 'down_fai0', '下臂相位 (down_fai0)', 0, 2*pi, 0, 0.0015, [0.1, 0.60, 0.8, 0.03]);
     
     % 创建绘图区域（调整了位置）
     ax = axes('Parent', fig, 'Position', [0.1, 0.15, 0.85, 0.4]);
