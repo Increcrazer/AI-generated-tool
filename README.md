@@ -1,1 +1,1 @@
-代码使用方法在每个文件夹里
+find usage in each folder
