@@ -59,7 +59,7 @@ function [R_bitperpulse, R_bitpersecond, e_obs, e_x1_U, q, N, time] = Decoy_Xu20
     [X_basis_state, Z_basis_state, p_0x0z, p_0x1z, p_0x0x, p_1x0z, p_1x1z, p_1x0x] ...
             = calculate_pdtec(delta_theta);
     q = compute_q(X_basis_state, Z_basis_state);    % 计算Z基和X基态的最大保真度
-        
+    
     n0x0zk = qZ*qX.*(p_dc_X/2 + p_0x0z*(1-exp(-ita_ch *k))).*Cdt_x.*N;
     n0x1zk = qZ*qX.*(p_dc_X/2 + p_0x1z*(1-exp(-ita_ch *k))).*Cdt_x.*N;
     n0x0xk = qX*qX.*(p_dc_X/2 + p_0x0x*(1-exp(-ita_ch *k))).*Cdt_x.*N;
@@ -67,6 +67,7 @@ function [R_bitperpulse, R_bitpersecond, e_obs, e_x1_U, q, N, time] = Decoy_Xu20
     n1x0zk = qZ*qX.*(p_dc_X/2 + p_1x0z*(1-exp(-ita_ch *k))).*Cdt_x.*N;
     n1x1zk = qZ*qX.*(p_dc_X/2 + p_1x1z*(1-exp(-ita_ch *k))).*Cdt_x.*N;
     n1x0xk = qX*qX.*(p_dc_X/2 + p_1x0x*(1-exp(-ita_ch *k))).*Cdt_x.*N;
+    
     
     %% 计算Z基比特误码率
     e_k_z = Pz*pk.*(p_dc_Z/2 + e_mis_Z*(1-exp(-ita_ch *k))).*Cdt_z; % B端探测z基到且出错的概率
@@ -91,42 +92,42 @@ function [R_bitperpulse, R_bitpersecond, e_obs, e_x1_U, q, N, time] = Decoy_Xu20
     n1x0xk_plus = zeros(1,3);
     n1x0xk_minus = zeros(1,3);
     for i = 1:3
-       n0x0zk_plus(i) = calculate_nzk_plus(k(i), pk(i), n0x0zk(i), n0x0zk, epsilon_sec);
-       n0x0zk_minus(i) = calculate_nzk_minus(k(i), pk(i), n0x0zk(i), n0x0zk, epsilon_sec);
-       n0x1zk_plus(i) = calculate_nzk_plus(k(i), pk(i), n0x1zk(i), n0x1zk, epsilon_sec);
-       n0x1zk_minus(i) = calculate_nzk_minus(k(i), pk(i), n0x1zk(i), n0x1zk, epsilon_sec);
-       n0x0xk_plus(i) = calculate_nxk_plus(k(i), pk(i), n0x0xk(i), n0x0xk, epsilon_sec);
-       n0x0xk_minus(i) = calculate_nxk_minus(k(i), pk(i), n0x0xk(i), n0x0xk, epsilon_sec);
+       n0x0zk_plus(i) = calculate_nzk_plus(k(i), pk(i), n0x0zk(i), sum(n0x0zk), epsilon_sec);
+       n0x0zk_minus(i) = calculate_nzk_minus(k(i), pk(i), n0x0zk(i), sum(n0x0zk), epsilon_sec);
+       n0x1zk_plus(i) = calculate_nzk_plus(k(i), pk(i), n0x1zk(i), sum(n0x1zk), epsilon_sec);
+       n0x1zk_minus(i) = calculate_nzk_minus(k(i), pk(i), n0x1zk(i), sum(n0x1zk), epsilon_sec);
+       n0x0xk_plus(i) = calculate_nxk_plus(k(i), pk(i), n0x0xk(i), sum(n0x0xk), epsilon_sec);
+       n0x0xk_minus(i) = calculate_nxk_minus(k(i), pk(i), n0x0xk(i), sum(n0x0xk), epsilon_sec);
 
-       n1x0zk_plus(i) = calculate_nzk_plus(k(i), pk(i), n1x0zk(i), n1x0zk, epsilon_sec);
-       n1x0zk_minus(i) = calculate_nzk_minus(k(i), pk(i), n1x0zk(i), n1x0zk, epsilon_sec);
-       n1x1zk_plus(i) = calculate_nzk_plus(k(i), pk(i), n1x1zk(i), n1x1zk, epsilon_sec);
-       n1x1zk_minus(i) = calculate_nzk_minus(k(i), pk(i), n1x1zk(i), n1x1zk, epsilon_sec);
-       n1x0xk_plus(i) = calculate_nxk_plus(k(i), pk(i), n1x0xk(i), n1x0xk, epsilon_sec);
-       n1x0xk_minus(i) = calculate_nxk_minus(k(i), pk(i), n1x0xk(i), n1x0xk, epsilon_sec);
+       n1x0zk_plus(i) = calculate_nzk_plus(k(i), pk(i), n1x0zk(i), sum(n1x0zk), epsilon_sec);
+       n1x0zk_minus(i) = calculate_nzk_minus(k(i), pk(i), n1x0zk(i), sum(n1x0zk), epsilon_sec);
+       n1x1zk_plus(i) = calculate_nzk_plus(k(i), pk(i), n1x1zk(i), sum(n1x1zk), epsilon_sec);
+       n1x1zk_minus(i) = calculate_nzk_minus(k(i), pk(i), n1x1zk(i), sum(n1x1zk), epsilon_sec);
+       n1x0xk_plus(i) = calculate_nxk_plus(k(i), pk(i), n1x0xk(i), sum(n1x0xk), epsilon_sec);
+       n1x0xk_minus(i) = calculate_nxk_minus(k(i), pk(i), n1x0xk(i), sum(n1x0xk), epsilon_sec);
     end
-    S_0x0z_1_plus = calculate_S_jxiz_1_plus(tau_1, mu_2, mu_3, n0x0zk_plus(2), n0x0zk_minus(3));
-    S_0x1z_1_plus = calculate_S_jxiz_1_plus(tau_1, mu_2, mu_3, n0x1zk_plus(2), n0x1zk_minus(3));
-    S_0x0x_1_plus = calculate_S_jx0x_1_plus(tau_1, mu_2, mu_3, n0x0xk_plus(2), n0x0xk_minus(3));
-    S_0x0z_1_minus =  calculate_S_jxiz_1_minus(tau_0, tau_1, mu_1, mu_2, mu_3, ...
+    S_0x0z_1_plus = calculate_S_jxiz_1_plus(calculate_tau_n(k, pk, 1), k(2), k(3), n0x0zk_plus(2), n0x0zk_minus(3));
+    S_0x1z_1_plus = calculate_S_jxiz_1_plus(calculate_tau_n(k, pk, 1), k(2), k(3), n0x1zk_plus(2), n0x1zk_minus(3));
+    S_0x0x_1_plus = calculate_S_jx0x_1_plus(calculate_tau_n(k, pk, 1), k(2), k(3), n0x0xk_plus(2), n0x0xk_minus(3));
+    S_0x0z_1_minus =  calculate_S_jxiz_1_minus(calculate_tau_n(k, pk, 0), calculate_tau_n(k, pk, 1), k(1), k(2), k(3), ...
                             n0x0zk_plus(1), n0x0zk_plus(2), n0x0zk_minus(2), n0x0zk_plus(3), n0x0zk_minus(3));
-    S_0x1z_1_minus =  calculate_S_jxiz_1_minus(tau_0, tau_1, mu_1, mu_2, mu_3, ...
+    S_0x1z_1_minus =  calculate_S_jxiz_1_minus(calculate_tau_n(k, pk, 0), calculate_tau_n(k, pk, 1), k(1), k(2), k(3), ...
                             n0x1zk_plus(1), n0x1zk_plus(2), n0x1zk_minus(2), n0x1zk_plus(3), n0x1zk_minus(3));   
-    S_0x0x_1_minus =  calculate_S_jx0x_1_minus(tau_0, tau_1, mu_1, mu_2, mu_3, ...
+    S_0x0x_1_minus =  calculate_S_jx0x_1_minus(calculate_tau_n(k, pk, 0), calculate_tau_n(k, pk, 1), k(1), k(2), k(3), ...
                             n0x0xk_plus(1), n0x0xk_plus(2), n0x0xk_minus(2), n0x0xk_plus(3), n0x0xk_minus(3));
 
-    S_1x0z_1_plus = calculate_S_jxiz_1_plus(tau_1, mu_2, mu_3, n1x0zk_plus(2), n1x0zk_minus(3));
-    S_1x1z_1_plus = calculate_S_jxiz_1_plus(tau_1, mu_2, mu_3, n1x1zk_plus(2), n1x1zk_minus(3));
-    S_1x0x_1_plus = calculate_S_jx0x_1_plus(tau_1, mu_2, mu_3, n1x0xk_plus(2), n1x0xk_minus(3));
-    S_1x0z_1_minus =  calculate_S_jxiz_1_minus(tau_0, tau_1, mu_1, mu_2, mu_3, ...
+    S_1x0z_1_plus = calculate_S_jxiz_1_plus(calculate_tau_n(k, pk, 1), k(2), k(3), n1x0zk_plus(2), n1x0zk_minus(3));
+    S_1x1z_1_plus = calculate_S_jxiz_1_plus(calculate_tau_n(k, pk, 1), k(2), k(3), n1x1zk_plus(2), n1x1zk_minus(3));
+    S_1x0x_1_plus = calculate_S_jx0x_1_plus(calculate_tau_n(k, pk, 1), k(2), k(3), n1x0xk_plus(2), n1x0xk_minus(3));
+    S_1x0z_1_minus =  calculate_S_jxiz_1_minus(calculate_tau_n(k, pk, 0), calculate_tau_n(k, pk, 1), k(1), k(2), k(3), ...
                             n1x0zk_plus(1), n1x0zk_plus(2), n1x0zk_minus(2), n1x0zk_plus(3), n1x0zk_minus(3));
-    S_1x1z_1_minus =  calculate_S_jxiz_1_minus(tau_0, tau_1, mu_1, mu_2, mu_3, ...
+    S_1x1z_1_minus =  calculate_S_jxiz_1_minus(calculate_tau_n(k, pk, 0), calculate_tau_n(k, pk, 1), k(1), k(2), k(3), ...
                             n1x1zk_plus(1), n1x1zk_plus(2), n1x1zk_minus(2), n1x1zk_plus(3), n1x1zk_minus(3));   
-    S_1x0x_1_minus =  calculate_S_jx0x_1_minus(tau_0, tau_1, mu_1, mu_2, mu_3, ...
+    S_1x0x_1_minus =  calculate_S_jx0x_1_minus(calculate_tau_n(k, pk, 0), calculate_tau_n(k, pk, 1), k(1), k(2), k(3), ...
                             n1x0xk_plus(1), n1x0xk_plus(2), n1x0xk_minus(2), n1x0xk_plus(3), n1x0xk_minus(3));
 
     s_real_U = [S_0x0z_1_plus, S_0x1z_1_plus, S_0x0x_1_plus; ...
-                S_1x0z_1_plus, S_1x1z_1_plus, S_1x0x_1_plus]; 
+                S_1x0z_1_plus, S_1x1z_1_plus, S_1x0x_1_plus];
     s_real_L = [S_0x0z_1_minus, S_0x1z_1_minus, S_0x0x_1_minus; ...
                 S_1x0z_1_minus, S_1x1z_1_minus, S_1x0x_1_minus];
             
@@ -143,7 +144,7 @@ function [R_bitperpulse, R_bitpersecond, e_obs, e_x1_U, q, N, time] = Decoy_Xu20
        nzk_minus(i) = calculate_nxk_minus(k(i), pk(i), n_Z(i), nZ, epsilon_sec);       
     end
     SZ_0 = calculate_SZ_0(calculate_tau_n(k, pk, 0), k(2), k(3), nzk_plus(2), nzk_minus(3));
-    SZ_1 = calculate_SZ_1(calculate_tau_n(k, pk, 0), calculate_tau_n(k, pk, 1), k(1), k(2), k(3), nzk_plus(1), nzk_minus(2), nzk_plus(3), SX_0);
+    SZ_1 = calculate_SZ_1(calculate_tau_n(k, pk, 0), calculate_tau_n(k, pk, 1), k(1), k(2), k(3), nzk_plus(1), nzk_minus(2), nzk_plus(3), SZ_0);
     
     %% 计算密钥率
     l = calculate_l(SZ_0, SZ_1, q, e_x1_U, f_EC*binary_entropy(e_obs)*nZ, epsilon_sec, epsilon_cor);
@@ -219,8 +220,8 @@ function [X_basis_state, Z_basis_state, p_0x0z, p_0x1z, p_0x0x, p_1x0z, p_1x1z, 
     rho0x = 0.5 * [1 + sin(2*delta1), cos(2*delta1);
                    cos(2*delta1), 1 - sin(2*delta1)];
     % 返回密度矩阵
-    X_basis_state = [rho0x];
-    Z_basis_state = [rho0z, rho1z];
+    X_basis_state = {rho0x};
+    Z_basis_state = {rho0z, rho1z};
     
     % 构造测量算子
     D_0x = 0.5 * [1, 1; 1, 1]; % |0_x⟩⟨0_x|
@@ -280,6 +281,28 @@ function q = compute_q(X_basis, Z_basis)
 
     % 计算 q = -log2(max_fidelity)
     q = -log2(max_fidelity);
+end
+
+%%
+function [sigma, energy_ratio] = gaussian_pulse_analysis(fwhm, gate_width)
+% GAUSSIAN_PULSE_ANALYSIS 计算高斯脉冲的标准差和指定门宽内的能量占比
+%
+% 输入参数:
+%   fwhm: 高斯脉冲的3dB全宽（FULL WIDTH AT HALF MAXIMUM）
+%   gate_width: 以中心为基准的门的宽度（总宽度为 ±gate_width/2）
+%
+% 输出参数:
+%   sigma: 高斯脉冲的标准差
+%   energy_ratio: 在 gate_width 范围内的能量占比（0~1）
+
+    % 1. 根据 FWHM 计算标准差 sigma
+    % FWHM = 2 * sqrt(2 * log(2)) * sigma ≈ 2.355 * sigma
+    sigma = fwhm / (2 * sqrt(2 * log(2)));  % 精确计算
+
+    % 2. 计算门宽内的能量占比（使用误差函数 erf 计算积分）
+    % 高斯函数在 [-a, a] 内的积分 = erf(a / (sqrt(2)*sigma))
+    a = gate_width / 2;  % 半宽
+    energy_ratio = erf(a / (sqrt(2) * sigma));
 end
 
 %%
@@ -362,19 +385,15 @@ function [s_vir_U, s_vir_L] = calculate_virtual_yields(qX, delta_theta, s_real_U
                   2*qX*s_real_U(s,2); 
                   qZ*s_real_U(s,3)];
         s_vir_s_U = BA_inv * input_U;
-        s_vir_U(s,:) = (s_vir_s_U ./ qZ)';  % 除以qZ
+        s_vir_U(:,s) = s_vir_s_U ./ qZ;  % 除以qZ
 
         % 下界计算 (式9)
         input_L = [2*qX*s_real_L(s,1);
                   2*qX*s_real_U(s,2);  % 注意这里第二个元素用上界
                   qZ*s_real_U(s,3)];   % 第三个元素用上界
         s_vir_s_L = BA_inv * input_L;
-        s_vir_L(s,:) = (s_vir_s_L ./ qZ)';  % 除以qZ
+        s_vir_L(:,s) = s_vir_s_L ./ qZ;  % 除以qZ
     end
-
-    % 确保概率在[0,1]范围内
-    s_vir_U = max(min(s_vir_U, 1), 0);
-    s_vir_L = max(min(s_vir_L, 1), 0);
 end
 
 %%
@@ -395,7 +414,7 @@ end
 function S_jx0x_1_minus = calculate_S_jx0x_1_minus(tau_0, tau_1, mu_1, mu_2, mu_3, ...
                             njxizk_mu1_plus, njx0xk_mu2_plus, njx0xk_mu2_minus, njx0xk_mu3plus, njx0xk_mu3_minus)
     S_jx0x_0 = calculate_SZ_0(tau_0, mu_2, mu_3, njx0xk_mu2_plus, njx0xk_mu3_minus);
-    S_jx0x_1_minus = calculate_SZ_1(tau_0, tau_1, mu_1, mu_2, mu_3, njxizk_mu1_plus, njx0xk_mu2_minus, njx0xk_mu3plus, S_jx0x_0, tau_0);
+    S_jx0x_1_minus = calculate_SZ_1(tau_0, tau_1, mu_1, mu_2, mu_3, njxizk_mu1_plus, njx0xk_mu2_minus, njx0xk_mu3plus, S_jx0x_0);
 end
 
 %%
