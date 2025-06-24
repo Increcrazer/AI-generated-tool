@@ -43,7 +43,7 @@ xlim([min(time_full), max(time_full)]);  % 横坐标顶格
 %% 创建高密度时间网格（插值）
 time_zoom = (data{1445:1465, 1} - data{1440, 1}) * 1e12;  % 原始时间点(ps)
 voltage_zoom = data{1445:1465, 2} * 31.6228;              % 原始电压数据(mV)
-num_points = 50000;  % 增加至500个点
+num_points = 500;  % 增加至500个点
 time_dense = linspace(min(time_zoom), max(time_zoom), num_points)';
 voltage_dense = interp1(time_zoom, voltage_zoom, time_dense, 'spline');
 %% 绘制图形（高分辨率版本）
@@ -118,12 +118,9 @@ xlim([min(time_dense)-0.05*x_span, max(time_dense)+0.05*x_span]);
 % 启用抗锯齿
 set(gcf, 'GraphicsSmoothing', 'on');
 
-
-%% 量子误码率计算模块（物理合理版本）
-% 定义物理常数
+%% 计算保真度、误码率
 voltage_offset = -6.5; % 电压偏移量
 voltage_dense = voltage_dense - voltage_offset; % 电压校准
-
 V_pi = 3.0;  % 半波电压(V)
 k = pi/V_pi;  % 相位调制系数
 
@@ -135,37 +132,65 @@ phi0 = k * V0;  % 基准相位
 pulse_ber = zeros(1,3);  
 pulse_fidelity = zeros(1,3);  
 
-% 计算每个脉冲的误码率
 for i = 1:3
     t0 = pulse_positions(i);
     
-    % 1. 生成并归一化高斯脉冲（面积归一化）
+    % 1. 生成高斯脉冲并限制在±3σ范围内
     pulse = exp(-(time_dense-t0).^2 / (2*sigma^2));
-    pulse = pulse / (sigma*sqrt(2*pi));  % 面积归一化为1
-    
-    % 2. 限制积分范围（±3σ内）
     valid_idx = (time_dense >= t0-3*sigma) & (time_dense <= t0+3*sigma);
     t_valid = time_dense(valid_idx);
-    V_valid = voltage_dense(valid_idx);
     pulse_valid = pulse(valid_idx);
     
-    % 3. 计算量子态重叠积分（物理修正版）
-    integrand = sqrt(pulse_valid).* (1 + exp(1i*k*(V0-V0))) / 2;
-    overlap = trapz(t_valid, integrand); 
+    % 2. 面积归一化（∫f(t)dt=1）
+    pulse_valid = pulse_valid / trapz(t_valid, pulse_valid); 
     
-    % 4. 强制保真度在[0,1]范围内
-    fidelity = abs(overlap)^2;
-    ber = max(1 - fidelity, 0);  % 误码率非负
+    % 3. 计算相位调制 ϕ(t) = k*(V(t)-V0)
+    V_valid = voltage_dense(valid_idx);
+    phi = k*(V_valid - V0);
     
-    pulse_fidelity(i) = fidelity;
-    pulse_ber(i) = ber;
+    % 4. 计算严格归一化因子N（通过双积分）
+    N = 0;
+    for m = 1:length(t_valid)
+        % 计算dt1（MATLAB需用if-else代替三元运算符）
+        if m > 1
+            dt1 = t_valid(m) - t_valid(m-1);
+        else
+            dt1 = t_valid(2) - t_valid(1);
+        end
+        
+        for n = 1:length(t_valid)
+            % 计算dt2
+            if n > 1
+                dt2 = t_valid(n) - t_valid(n-1);
+            else
+                dt2 = t_valid(2) - t_valid(1);
+            end
+            
+            integrand = sqrt(pulse_valid(m)*pulse_valid(n)) * ...
+                       (1 + exp(1i*(phi(n)-phi(m))))/2;
+            N = N + integrand * dt1 * dt2;
+        end
+    end
     
-    % 调试信息（可选）
-    fprintf('脉冲@%dps: 积分范围=%.1f-%.1fps, 最大脉冲值=%.3f\n',...
-            t0, t_valid(1), t_valid(end), max(pulse_valid));
+    % 5. 向量化优化版本（替代双重循环，更高效）
+    % [T1,T2] = meshgrid(t_valid);
+    % [P1,P2] = meshgrid(pulse_valid);
+    % [Phi1,Phi2] = meshgrid(phi);
+    % integrand_matrix = sqrt(P1.*P2).*(1+exp(1i*(Phi1-Phi2)))/2;
+    % N = trapz(t_valid, trapz(t_valid, integrand_matrix, 2));
+    
+    % 6. 计算未归一化的量子态重叠
+    integrand_psi = sqrt(pulse_valid) .* (1 + exp(1i*phi)) /2;
+    overlap_unnormalized = trapz(t_valid, integrand_psi);
+    
+    % 7. 最终结果
+    pulse_fidelity(i) = abs(overlap_unnormalized)^2 / N;
+    pulse_ber(i) = 1 - pulse_fidelity(i);
+    
+    fprintf('脉冲@%dps: N=%.6f, 保真度=%.6f\n', t0, N, pulse_fidelity(i));
 end
 
-%% 物理合理性验证
+%% 结果展示
 fprintf('\n=== 量子误码率分析结果 ===\n');
 fprintf('系统参数验证:\n');
 fprintf('• 电压偏移量 = %.2f V\n', voltage_offset);
@@ -177,11 +202,11 @@ fprintf('----------------------------------------\n');
 for i = 1:3
     fprintf('脉冲@%dps:\n', pulse_positions(i));
     fprintf('• 保真度 = %.6f (合理范围验证: %s)\n', ...
-            pulse_fidelity(i), ...
-            iff(pulse_fidelity(i)>=0 && pulse_fidelity(i)<=1, '√', '×'));
+            pulse_fidelity(i), iff(pulse_fidelity(i) >= 0 && pulse_fidelity(i) <= 1, '√', '×'));
     fprintf('• 误码率 = %.2e\n', pulse_ber(i));
 end
 fprintf('========================================\n');
+
 
 %% 辅助函数
 function s = iff(condition, true_str, false_str)
