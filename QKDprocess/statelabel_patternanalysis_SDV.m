@@ -1,21 +1,23 @@
 %% user set
-filename = 'SDV-IM.csv';
-bin_width = 16;
+filename = 'SDV-IQ0627.csv';
+bin_width = 16; % [ps]
 bin_number = 100000;
 freq = 1.25 *10^9;  % [Hz]
 pseudo_length = 32;
-count_resol = 30;  % count resolution
+count_resol = 25;  % count resolution
 arrange_list = char("SDVVSSDDSSVSVSSDSSVD");
 
 %% find states of the pulses 
 period = 1 /freq *10^12;    % [ps]
-pseudo_time = 3*pseudo_length *period;   % [ps] 取3倍伪随机数长度
+pseudo_time = 5*pseudo_length *period;   % [ps] 取5倍伪随机数长度
+MINPEAKDISTANCE = period/bin_width - 3;
 
 time = csvread(filename, 0, 0,[0,0,0,pseudo_time /bin_width]);
 data = csvread(filename, 1, 0,[1,0,1,pseudo_time /bin_width]);
-[~,index_first] = max(data(1:5*period /bin_width)); % 取5个脉冲内的第一个峰值
-index_last = index_first + (pseudo_time -5*period) /bin_width;
-index_list = index_first:period /bin_width:index_last;
+[~,index_list] = findpeaks(data,'MINPEAKHEIGHT',1,'MINPEAKDISTANCE',MINPEAKDISTANCE);  
+index_list = index_list(2:end -1);
+index_first = index_list(1);
+index_last = index_list(end);
 
 gate_ratio = 320/800;
 pulse = zeros(1,length(index_list));
