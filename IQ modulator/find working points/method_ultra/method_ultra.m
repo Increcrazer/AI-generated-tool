@@ -1,4 +1,4 @@
-function find_IQ_phase_method_ultra()
+function method_ultra()
     % 一种找到I和Q消光点的迭代算法（无敌）
     % 主函数封装所有变量
     % 初始参数设置
@@ -118,7 +118,7 @@ end
 function [best_phase, mid_power] = scan_phase_mid(PS2, PS3, PS5, ...
                                          IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
                                          I_RF_phi, Q_RF_phi, k, b, target)
-    phase_points = linspace(0, 2*pi, 700); % 扫描1000个点
+    phase_points = linspace(0, 2*pi, 700); % 扫描700个点
     power_values = zeros(size(phase_points));
     
     % 首先收集所有相位点的功率值
@@ -158,47 +158,12 @@ function [best_phase, mid_power] = scan_phase_mid(PS2, PS3, PS5, ...
     [~, idx] = min(abs(power_values - target_power));
     best_phase = phase_points(idx);
     mid_power = power_values(idx);
-    
-    % 可选：如果需要更精确的结果，可以在找到的点附近进行二次扫描
-    if idx > 1 && idx < length(phase_points)
-        fine_phase_points = linspace(phase_points(idx-1), phase_points(idx+1), 100);
-        fine_power_values = zeros(size(fine_phase_points));
-        
-        for i = 1:length(fine_phase_points)
-            phase = fine_phase_points(i);
-            
-            switch target
-                case 'PS2'
-                    current_PS2 = phase;
-                    current_PS3 = PS3;
-                    current_PS5 = PS5;
-                case 'PS3'
-                    current_PS2 = PS2;
-                    current_PS3 = phase;
-                    current_PS5 = PS5;
-                case 'PS5'
-                    current_PS2 = PS2;
-                    current_PS3 = PS3;
-                    current_PS5 = phase;
-            end
-            
-            I = abs(layout_IQ(IQ_IN, R, IQ_fai0, ...
-                 up_fai0, I_RF_phi, current_PS2, ...
-                 down_fai0, Q_RF_phi, current_PS3, ...
-                 current_PS5, k, b))^2;
-            fine_power_values(i) = I;
-        end
-        
-        [~, fine_idx] = min(abs(fine_power_values - target_power));
-        best_phase = fine_phase_points(fine_idx);
-        mid_power = fine_power_values(fine_idx);
-    end
 end
 
 function [best_phase, min_power] = scan_phase_min(PS2, PS3, PS5, ...
                                              IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
                                              I_RF_phi, Q_RF_phi, k, b, target)
-    phase_points = linspace(0, 2*pi, 700); % 扫描100个点
+    phase_points = linspace(0, 2*pi, 700); % 扫描700个点
     min_power = inf;
     best_phase = eval(target); % 获取当前目标相位值
     
@@ -228,44 +193,6 @@ function [best_phase, min_power] = scan_phase_min(PS2, PS3, PS5, ...
         
         if current_power < min_power
             min_power = current_power;
-            best_phase = phase;
-        end
-    end
-end
-
-function [best_phase, max_power] = scan_phase_max(PS2, PS3, PS5, ...
-                                             IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
-                                             I_RF_phi, Q_RF_phi, k, b, target)
-    phase_points = linspace(0, 2*pi, 700); % 扫描101个点
-    max_power = 0;
-    best_phase = eval(target); % 获取当前目标相位值
-    
-    for phase = phase_points
-        % 根据目标更新相应的相位
-        switch target
-            case 'PS2'
-                current_PS2 = phase;
-                current_PS3 = PS3;
-                current_PS5 = PS5;
-            case 'PS3'
-                current_PS2 = PS2;
-                current_PS3 = phase;
-                current_PS5 = PS5;
-            case 'PS5'
-                current_PS2 = PS2;
-                current_PS3 = PS3;
-                current_PS5 = phase;
-        end
-        
-        % 计算光功率
-        I = abs(layout_IQ(IQ_IN, R, IQ_fai0, ...
-             up_fai0, I_RF_phi, current_PS2, ...
-             down_fai0, Q_RF_phi, current_PS3, ...
-             current_PS5, k, b))^2;
-        current_power = I;
-        
-        if current_power > max_power
-            max_power = current_power;
             best_phase = phase;
         end
     end
