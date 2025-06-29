@@ -1,4 +1,4 @@
-function find_IQ_phase_method()
+function method_ori()
     % 一种找到I和Q消光点的迭代算法
     % step1收敛有可能出问题
     % 加上step2精度更高
