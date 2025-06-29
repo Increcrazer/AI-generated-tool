@@ -1,11 +1,15 @@
+plot_phi_surfaces();
+
 seed = 42;
 rng(seed);
 phi1_init = 2*pi*rand();
 phi2_init = 2*pi*rand();
 phi3_init = 2*pi*rand();
 plot_one_iterations(phi1_init, phi2_init, phi3_init, 6);
+
 plot_nine_iterations();
 
+%% 对于0~2pi之间的相位，绘制单次迭代后的输出
 function plot_phi_surfaces()
     % 定义输入范围 [0, 2π]
     phi1_prev_range = linspace(0, 2*pi, 100);
@@ -49,6 +53,7 @@ function plot_phi_surfaces()
     axis tight;
 end
 
+%% 根据九种初始相位，计算每一次迭代后的相位，并绘图
 function plot_nine_iterations()
     % 创建3×3的子图布局
     figure('Position', [100, 100, 1400, 1400], 'Color', 'white');
@@ -152,7 +157,7 @@ function plot_nine_iterations()
     leg.FontSize = 9;
     leg.Box = 'off';
 end
-
+%% 根据一种初始相位，计算每一次迭代后的相位，并绘图
 function plot_one_iterations(phi1_init, phi2_init, phi3_init, num_iterations)
     [phi1_list, phi2_list, phi3_list] = iterate_phis(phi1_init, phi2_init, phi3_init, num_iterations);
     phi1_err_list = abs(phi1_list - pi);
@@ -238,6 +243,7 @@ function plot_one_iterations(phi1_init, phi2_init, phi3_init, num_iterations)
     
 end
 
+%% 根据迭代次数和初始相位，计算每一次迭代后的相位
 function [phi1_list, phi2_list, phi3_list] = iterate_phis(phi1_init, phi2_init, phi3_init, num_iterations)
     % 初始化列表（包括初始值）
     phi1_list = zeros(1, num_iterations + 1);
@@ -260,6 +266,7 @@ function [phi1_list, phi2_list, phi3_list] = iterate_phis(phi1_init, phi2_init, 
     end
 end
 
+%% 迭代算法表达式
 function [phi1_n, phi2_n, phi3_n, I_n] = calculate_phis(phi1_n_minus_1, phi2_n_minus_1, phi3_n_minus_1, flag)
     % 第一步：计算 phi3_n以及该步的光强
     k = 0; % 可以调整k值
