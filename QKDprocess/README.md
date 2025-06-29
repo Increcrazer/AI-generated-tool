@@ -1,3 +1,5 @@
+
+## statelabel_patternanalysis_SDV说明
 - 首先会对脉冲强度进行统计，当arrset维度是3时说明统计正确，不正确的话需要修改count_resol
 ![](https://s2.loli.net/2025/06/09/piB8WAr6EMvIu5F.jpg)
 

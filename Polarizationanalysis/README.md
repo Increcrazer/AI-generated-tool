@@ -1,4 +1,4 @@
-## SNSPD_period_angle.m
+## SNSPD_period_angle说明
 表格格式：
 
-![image](https://github.com/user-attachments/assets/208e22f9-c292-49eb-9bd1-f99b29b0a7ef)
+![alt text](table.jpg)
