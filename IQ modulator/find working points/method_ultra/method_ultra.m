@@ -14,6 +14,9 @@ function method_ultra()
     up_fai0 = 2*pi*rand();
     down_fai0 = 2*pi*rand();
     
+    % 电压扫描个数
+    step_num = 100;    
+
     fprintf('up_fai0 = %.4f rad, down_fai0 = %.4f rad, IQ_fai0 = %.4f rad\n', ...
     up_fai0, down_fai0, IQ_fai0);
 
@@ -45,7 +48,7 @@ function method_ultra()
         % 扫描PS5_fai
         [PS5_fai, PS5_power] = scan_phase_mid(PS2_fai, PS3_fai, PS5_fai, ...
                                          IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
-                                         I_RF_phi, Q_RF_phi, k, b, 'PS5');
+                                         I_RF_phi, Q_RF_phi, k, b, 'PS5', step_num);
         
         % 从第二次迭代开始比较功率
         if iter_1 > 1 && PS5_power > prev_PS5_power
@@ -59,45 +62,33 @@ function method_ultra()
             if global_converged
                 break;
             end
-            
-            % 保存旧的功率值用于比较
-            old_PS2_power = prev_PS2_power;
 
             % 扫描PS2_fai
             [PS2_fai, PS2_power] = scan_phase_min(PS2_fai, PS3_fai, PS5_fai, ...
                                              IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
-                                             I_RF_phi, Q_RF_phi, k, b, 'PS2');
+                                             I_RF_phi, Q_RF_phi, k, b, 'PS2', step_num);
             PS2_fai = mod(PS2_fai,2*pi);
 
             % 扫描PS3_fai
             [PS3_fai, PS3_power] = scan_phase_min(PS2_fai, PS3_fai, PS5_fai, ...
                                              IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
-                                             I_RF_phi, Q_RF_phi, k, b, 'PS3');
+                                             I_RF_phi, Q_RF_phi, k, b, 'PS3', step_num);
             PS3_fai = mod(PS3_fai,2*pi);
             
             % 计算组合相位
             combined_PS2 = mod(PS2_fai + up_fai0, 2*pi);
             combined_PS3 = mod(PS3_fai + down_fai0, 2*pi);
             
-            % 检查是否接近π
-            if abs(combined_PS2 - pi) < 0.01 && abs(combined_PS3 - pi) < 0.01
-                fprintf('全局收敛条件满足：PS2_fai+up_fai0=%.4f, PS3_fai+down_fai0=%.4f 都接近π\n',...
-                        combined_PS2, combined_PS3);
-                global_converged = true;
-            end
             
             % 记录结果
             result_count = result_count + 1;
             results(result_count,:) = [iter_1, iter_23, PS2_fai, PS3_fai, PS5_fai, ...
                                       PS2_power, PS3_power, PS5_power];
             
-            % 检查PS2功率是否收敛（变化小于0.0001）
-            if iter_23 > 1 && abs(PS2_power - old_PS2_power)/old_PS2_power < 0.001
-                break;
-            end
-
-            % 更新前一次PS2功率记录
-            prev_PS2_power = PS2_power;
+            % 检查与π相差是否小于电压步进
+            if abs(combined_PS2 - pi)<=2*pi/(step_num-1) && abs(combined_PS3 - pi)<=2*pi/(step_num-1)
+                global_converged = true;
+            end 
         end
     end                            
     
@@ -117,8 +108,8 @@ end
 % 辅助函数：相位扫描
 function [best_phase, mid_power] = scan_phase_mid(PS2, PS3, PS5, ...
                                          IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
-                                         I_RF_phi, Q_RF_phi, k, b, target)
-    phase_points = linspace(0, 2*pi, 700); % 扫描700个点
+                                         I_RF_phi, Q_RF_phi, k, b, target, step_num)
+    phase_points = linspace(0, 2*pi, step_num); % 扫描step_num个点
     power_values = zeros(size(phase_points));
     
     % 首先收集所有相位点的功率值
@@ -162,8 +153,8 @@ end
 
 function [best_phase, min_power] = scan_phase_min(PS2, PS3, PS5, ...
                                              IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
-                                             I_RF_phi, Q_RF_phi, k, b, target)
-    phase_points = linspace(0, 2*pi, 700); % 扫描700个点
+                                             I_RF_phi, Q_RF_phi, k, b, target, step_num)
+    phase_points = linspace(0, 2*pi, step_num); % 扫描step_num个点
     min_power = inf;
     best_phase = eval(target); % 获取当前目标相位值
     
