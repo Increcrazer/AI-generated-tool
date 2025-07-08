@@ -1,9 +1,10 @@
-% 运行1000次并统计迭代次数分布
-num_runs = 1000;
+% 运行5000次并统计迭代次数分布
+num_runs = 5000;
+step_num = 100;
 iteration_results = zeros(num_runs, 1);
 
 for i = 1:num_runs
-    iteration_results(i) = find_IQ_phase_method_ultra_with_count();
+    iteration_results(i) = find_IQ_phase_method_ultra_with_count(step_num);
 end
 
 % 显示统计结果
@@ -20,7 +21,7 @@ xlabel('迭代次数');
 ylabel('出现频率');
 grid on;
 %% 计算迭代次数
-function iteration_counts = find_IQ_phase_method_ultra_with_count()
+function iteration_counts = find_IQ_phase_method_ultra_with_count(step_num)
     % 初始参数设置
     IQ_IN = 1;
     R = 0.5;
@@ -60,13 +61,14 @@ function iteration_counts = find_IQ_phase_method_ultra_with_count()
         % 扫描PS5_fai
         [PS5_fai, PS5_power] = scan_phase_mid(PS2_fai, PS3_fai, PS5_fai, ...
                                          IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
-                                         I_RF_phi, Q_RF_phi, k, b, 'PS5');
+                                         I_RF_phi, Q_RF_phi, k, b, 'PS5', step_num);
         
         % 从第二次迭代开始比较功率
         if iter_1 > 1 && PS5_power > prev_PS5_power
             PS5_fai = mod(prev_PS5_fai + pi, 2*pi);  % 加π并取模
         end
         prev_PS5_fai = PS5_fai;
+        % 更新前一次功率记录
         prev_PS5_power = PS5_power;
         
         for iter_23 = 1:max_iterations_23    
@@ -76,36 +78,40 @@ function iteration_counts = find_IQ_phase_method_ultra_with_count()
             % 扫描PS2_fai
             [PS2_fai, ~] = scan_phase_min(PS2_fai, PS3_fai, PS5_fai, ...
                                              IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
-                                             I_RF_phi, Q_RF_phi, k, b, 'PS2');
+                                             I_RF_phi, Q_RF_phi, k, b, 'PS2',step_num);
             PS2_fai = mod(PS2_fai,2*pi);
 
             % 扫描PS3_fai
             [PS3_fai, ~] = scan_phase_min(PS2_fai, PS3_fai, PS5_fai, ...
                                              IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
-                                             I_RF_phi, Q_RF_phi, k, b, 'PS3');
+                                             I_RF_phi, Q_RF_phi, k, b, 'PS3',step_num);
             PS3_fai = mod(PS3_fai,2*pi);
             
             % 计算组合相位
             combined_PS2 = mod(PS2_fai + up_fai0, 2*pi);
             combined_PS3 = mod(PS3_fai + down_fai0, 2*pi);
             
-            % 检查是否接近π
-            if abs(combined_PS2 - pi)/pi<1/300 && abs(combined_PS3 - pi)/pi<1/300
+            % 更新迭代计数器
+            total_iterations = total_iterations + 1;
+            
+            % 检查与π相差是否小于电压步进
+            if abs(combined_PS2 - pi)<=2*pi/(step_num-1) && abs(combined_PS3 - pi)<=2*pi/(step_num-1)
                 global_converged = true;
             end 
         end
-        % 更新迭代计数器
-        total_iterations = total_iterations + 1;
     end
     % 返回总迭代次数
     iteration_counts = total_iterations;
+    if iteration_counts > 6
+        fprintf('IQ_fai0: %.2f, up_fai0: %.2f, down_fai0: %.2f\n', IQ_fai0, up_fai0, down_fai0); 
+    end
 end
 
 %% 辅助函数：相位扫描
 function [best_phase, mid_power] = scan_phase_mid(PS2, PS3, PS5, ...
                                          IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
-                                         I_RF_phi, Q_RF_phi, k, b, target)
-    phase_points = linspace(0, 2*pi, 600); % 扫描600个点
+                                         I_RF_phi, Q_RF_phi, k, b, target, step_num)
+    phase_points = linspace(0, 2*pi, step_num); % 扫描step_num个点
     power_values = zeros(size(phase_points));
     
     % 首先收集所有相位点的功率值
@@ -149,8 +155,8 @@ end
 
 function [best_phase, min_power] = scan_phase_min(PS2, PS3, PS5, ...
                                              IQ_IN, R, IQ_fai0, up_fai0, down_fai0, ...
-                                             I_RF_phi, Q_RF_phi, k, b, target)
-    phase_points = linspace(0, 2*pi, 600); % 扫描600个点
+                                             I_RF_phi, Q_RF_phi, k, b, target, step_num)
+    phase_points = linspace(0, 2*pi, step_num); % 扫描step_num个点
     min_power = inf;
     best_phase = eval(target); % 获取当前目标相位值
     
