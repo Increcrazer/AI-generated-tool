@@ -63,16 +63,16 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX] = Decoy_Lim2014_coref
     
     %% 计算B端错误率
     %%% Lim 2014 %%%
-    e_k_x = Px*pk.*(p_dc_X + e_mis_X*(1-exp(-ita_sys *k)) + p_ap.*Dk_x/2); % B端探测x基到且出错的概率   
-    e_k_z = Pz*pk.*(p_dc_Z + e_mis_Z*(1-exp(-ita_sys *k)) + p_ap.*Dk_z/2); % B端探测z基到且出错的概率
+    ek_x = Px*pk.*(p_dc_X + e_mis_X*(1-exp(-ita_sys *k)) + p_ap.*Dk_x/2); % B端探测x基到且出错的概率   
+    ek_z = Pz*pk.*(p_dc_Z + e_mis_Z*(1-exp(-ita_sys *k)) + p_ap.*Dk_z/2); % B端探测z基到且出错的概率
     
 %     %%% Rusca 2018 %%%
 %     e_k_x = Px*pk.*(p_dc_X/2 + e_mis_X*(1-exp(-ita_sys *k))).*Cdt_x; % B端探测x基到且出错的概率   
 %     e_k_z = Pz*pk.*(p_dc_Z/2 + e_mis_Z*(1-exp(-ita_sys *k))).*Cdt_z; % B端探测z基到且出错的概率
     
     %% 计算计算B端各强度态误码数目
-    m_X = N.*e_k_x;  % B端接收的X基各强度态出错的数目
-    m_Z = N.*e_k_z;  % B端接收的Z基各强度态出错的数目
+    m_X = N.*ek_x;  % B端接收的X基各强度态出错的数目
+    m_Z = N.*ek_z;  % B端接收的Z基各强度态出错的数目
     mX = sum(m_X);
     mZ = sum(m_Z); 
 
