@@ -2,7 +2,7 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX] = Decoy_Lim2014_coref
             (epsilon_cor, epsilon_sec, ...
              qX, N, f, gate_width, width_3dB, ...
              k, pk, ...
-             L, alpha, ita_Bob_detect, ...
+             L, alpha, eta_Bob_detect, ...
              e_mis_X, e_mis_Z, f_EC, ...
              p_ap, dc_count, deadtime)
     % 输入：
@@ -11,7 +11,7 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX] = Decoy_Lim2014_coref
     % 3dBwidth[s]: 脉冲半高全宽
     % k = [0.7 0.1 0.0002]; 各个强度态的平均光子, pk = [0.5 0.25 0.25]; A端各个强度态的发送概率
     % L[m]: A到B距离, alpha[dB/m]: 光路损耗
-    % ita_Bob_detect: Bob解码端总效率（假设通过PC使得探测器效率几乎一致）,包括滤波解码端超导等，不包括门宽
+    % eta_Bob_detect: Bob解码端总效率（假设通过PC使得探测器效率几乎一致）,包括滤波解码端超导等，不包括门宽
     % e_mis_X(Z): A端态制备的X(Z)基错误率，用X(Z)基对比度反算得到, f_EC: 纠错效率
     % p_ap: 后脉冲概率, dc_count[/s]: 超导单通道暗计数, 是个1x4向量（四个超导）,deadtime[s]: 死时间
     % 输出：
@@ -21,9 +21,9 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX] = Decoy_Lim2014_coref
     % nX: B接收到的X基块长
     
     %% 定义光路到Bob解码的效率
-    ita_ch = 10.^(-alpha*L/10);
+    eta_ch = 10.^(-alpha*L/10);
     [~, width_eff] = gaussian_pulse_analysis(width_3dB, gate_width); % 卡门宽带来的效率
-    ita_sys = ita_ch*ita_Bob_detect*width_eff; % 假设通过PC使得探测器效率几乎一致
+    eta_sys = eta_ch*eta_Bob_detect*width_eff; % 假设通过PC使得探测器效率几乎一致
 
     %% 暗计数概率，这玩意特别影响密钥率 
     p_dc = calculate_p_dc(dc_count, gate_width); 
@@ -37,21 +37,21 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX] = Decoy_Lim2014_coref
     
     %% 计算B端收到每个强度态的概率（X基）
     %%% Lim 2014 %%%
-    Dk_x = Px*pk.*(1 - (1 - 2*p_dc_X).*exp(-ita_sys.*k));
+    Dk_x = Px*pk.*(1 - (1 - 2*p_dc_X).*exp(-eta_sys.*k));
     Rk_x = Dk_x.*(1 + p_ap);
     
 %     %%% Rusca 2018 %%%
-%     Dk_x = Px*pk.*((1 - exp(-ita_sys.*k)) + p_dc_X);  % B端探测每个强度态的概率(不含死时间修正)  
+%     Dk_x = Px*pk.*((1 - exp(-eta_sys.*k)) + p_dc_X);  % B端探测每个强度态的概率(不含死时间修正)  
 %     Cdt_x =  1./(1 + f*Rk_x*deadtime);    % B端探测器死时间修正,这里的Rk_x是Lim 2014的
 %     Rk_x = Dk_x.*Cdt_x;  % B端探测每个强度态的概率(含死时间修正)
     
     %% 计算B端收到每个强度态的概率（Z基）
     %%% Lim 2014 %%%
-    Dk_z = Pz*pk.*(1 - (1 - 2*p_dc_Z).*exp(-ita_sys.*k));
+    Dk_z = Pz*pk.*(1 - (1 - 2*p_dc_Z).*exp(-eta_sys.*k));
     Rk_z = Dk_z.*(1 + p_ap);
     
 %     %%% Rusca 2018 %%%
-%     Dk_z = Pz*pk.*((1 - exp(-ita_sys.*k)) + p_dc_Z);  % B端探测每个强度态的概率(不含死时间修正)  
+%     Dk_z = Pz*pk.*((1 - exp(-eta_sys.*k)) + p_dc_Z);  % B端探测每个强度态的概率(不含死时间修正)  
 %     Cdt_z =  1./(1 + f*Rk_z*deadtime);    % B端探测器死时间修正,这里的Rk_z是Lim 2014的
 %     Rk_z = Dk_z.*Cdt_z;  % B端探测每个强度态的概率(含死时间修正)
     
@@ -63,12 +63,12 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX] = Decoy_Lim2014_coref
     
     %% 计算B端错误率
     %%% Lim 2014 %%%
-    ek_x = Px*pk.*(p_dc_X + e_mis_X*(1-exp(-ita_sys *k)) + p_ap.*Dk_x/2); % B端探测x基到且出错的概率   
-    ek_z = Pz*pk.*(p_dc_Z + e_mis_Z*(1-exp(-ita_sys *k)) + p_ap.*Dk_z/2); % B端探测z基到且出错的概率
+    ek_x = Px*pk.*(p_dc_X + e_mis_X*(1-exp(-eta_sys *k)) + p_ap.*Dk_x/2); % B端探测x基到且出错的概率   
+    ek_z = Pz*pk.*(p_dc_Z + e_mis_Z*(1-exp(-eta_sys *k)) + p_ap.*Dk_z/2); % B端探测z基到且出错的概率
     
 %     %%% Rusca 2018 %%%
-%     e_k_x = Px*pk.*(p_dc_X/2 + e_mis_X*(1-exp(-ita_sys *k))).*Cdt_x; % B端探测x基到且出错的概率   
-%     e_k_z = Pz*pk.*(p_dc_Z/2 + e_mis_Z*(1-exp(-ita_sys *k))).*Cdt_z; % B端探测z基到且出错的概率
+%     e_k_x = Px*pk.*(p_dc_X/2 + e_mis_X*(1-exp(-eta_sys *k))).*Cdt_x; % B端探测x基到且出错的概率   
+%     e_k_z = Pz*pk.*(p_dc_Z/2 + e_mis_Z*(1-exp(-eta_sys *k))).*Cdt_z; % B端探测z基到且出错的概率
     
     %% 计算计算B端各强度态误码数目
     m_X = N.*ek_x;  % B端接收的X基各强度态出错的数目
