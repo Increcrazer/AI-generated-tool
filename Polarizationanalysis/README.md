@@ -1,7 +1,7 @@
 ## SNSPD_period_angle说明
 表格格式：
 
-![alt text](table.jpg)
+![](https://s2.loli.net/2025/07/21/5BGPfxpalkOUMIN.png)
 
 ## angle_between_polarization_states说明
 表格格式：
