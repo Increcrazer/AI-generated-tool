@@ -16,3 +16,6 @@
 输出格式如下：
 
 ![image](https://github.com/user-attachments/assets/c791ec6b-51db-48de-943f-8977f116ea69)
+
+## RAPPG_randomgene_AM说明
+生成IM调制所需要的二进制文件给RAPPG使用，可以任意调节随机数比例和长度
