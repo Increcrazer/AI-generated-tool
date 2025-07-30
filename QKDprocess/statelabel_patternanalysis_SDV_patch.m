@@ -13,7 +13,7 @@ for k = 1:length(files)
     filename = files(k).name;
     disp(['处理文件: ', filename]);
     try
-        statelabel_SDV_function(filename, arrange_list);
+        patternanalysis_SDV_function(filename, arrange_list);
     catch ME
         warning(['处理失败: ', filename, ', 错误信息: ', ME.message]);
     end
@@ -23,7 +23,7 @@ disp('批量处理完成。');
 
 
 %% 
-function statelabel_SDV_function(filename, arrange_list)
+function patternanalysis_SDV_function(filename, arrange_list)
     bin_width = 16; % [ps]
     freq = 1.25 *10^9;  % [Hz]
     count_resol = 20;  % count resolution
