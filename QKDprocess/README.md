@@ -1,19 +1,19 @@
 ## delay_accuracy_analysis说明
 首先得有示波器存储的波形文件，代码中是'1250M_PM.csv'
 
-![alt text](waveform.jpg)
+![](https://s2.loli.net/2025/07/31/Y6Qrtls8xHeAZG3.png)
 
 然后会放大某个码字对应的波形，并用红色虚线标出波形平坦区：
 
-![alt text](partialwaveform.jpg)
+![](https://s2.loli.net/2025/07/31/zSQp4nbYHuGwD9M.png)
 
 然后会放大平坦区，并对平坦区做平滑，添加三种不同位置的高斯光脉冲：
 
-![alt text](eopartialwaveform.jpg)
+![](https://s2.loli.net/2025/07/31/zrqO15GUKywHcgS.png)
 
 然后给出三种位置高斯光脉冲经过调制后的误码率，以此来说明延时精度的必要性：
 
-![alt text](result.jpg)
+![](https://s2.loli.net/2025/07/31/9J3tnWwfQMquDVG.png)
 
 ## statelabel_patternanalysis_SDV说明
 首先会对脉冲强度进行统计，当arrset维度是3时说明统计正确，不正确的话需要修改count_resol
