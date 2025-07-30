@@ -30,3 +30,8 @@
 
 关于模式效应的分析见:
 Yuanfei Gao and Zhiliang Yuan, "Suppression of patterning effect using IQ modulator for high-speed quantum key distribution systems," Opt. Lett. 48, 1068-1071 (2023)
+
+## statelabel_patternanalysis_SDV_patch说明
+将statelabel_patternanalysis_SDV封装为一个函数，但是不输出任何图像，可以批量输出模式效应的统计分析表格，效果如下：
+
+![](https://s2.loli.net/2025/07/31/YemhBsPGaQE2g31.png)
