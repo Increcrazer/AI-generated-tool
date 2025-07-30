@@ -18,7 +18,7 @@ process_excel = @(filename) ...
 
 %% 批量处理文件
 file_list = dir(file_pattern);
-all_data = table();
+all_norm_data = table();
 
 for i = 1:length(file_list)
     filename = file_list(i).name;
@@ -34,22 +34,22 @@ for i = 1:length(file_list)
     % 3. 提取目标列
     data = data(:, target_columns);
     
-    % 4. 合并数据
-    all_data = [all_data; data];
+    % 4. 对当前文件的数据进行归一化
+    % 计算当前文件的SS列非零均值
+    current_ss_mean = mean(data.SS(data.SS > 0 & ~isnan(data.SS)));
+    
+    % 归一化当前文件的数据
+    norm_data = data;
+    for col = target_columns
+        col_name = col{1};
+        norm_data.(col_name) = norm_data.(col_name) / current_ss_mean;
+    end
+    
+    % 5. 合并归一化后的数据
+    all_norm_data = [all_norm_data; norm_data];
 end
 
-%% 智能数据清洗与归一化
-% 自动识别D列（SS）的非零均值
-ss_mean = mean(all_data.SS(all_data.SS > 0 & ~isnan(all_data.SS)));
-
-% 归一化处理（修改此处修复错误）
-norm_data = all_data;
-for col = target_columns
-    col_name = col{1};
-    norm_data.(col_name) = norm_data.(col_name) / ss_mean;
-end
-
-colors = lines(width(norm_data));
+colors = lines(width(all_norm_data));
 legend_labels = {'SS', 'DS', 'VS', 'SD', 'DD', 'VD'};
 
 %% 脉冲计数直方图
@@ -61,13 +61,13 @@ figure('Position', [100, 100, 800, 600]);
 hold on;
 
 % 预分配图形对象
-bar_handles = gobjects(1, width(norm_data)); 
+bar_handles = gobjects(1, width(all_norm_data)); 
 
 % 计算总脉冲数（用于后续百分比显示）
-total_pulses = sum(sum(~isnan(norm_data{:,1:width(norm_data)})));
+total_pulses = sum(sum(~isnan(all_norm_data{:,1:width(all_norm_data)})));
 
-for i = 1:width(norm_data)
-    col_data = norm_data{:,i};
+for i = 1:width(all_norm_data)
+    col_data = all_norm_data{:,i};
     valid_data = col_data(col_data > 0 & ~isnan(col_data));
     
     if ~isempty(valid_data)
@@ -103,10 +103,9 @@ text(0.8, 0.98, sprintf('Total Pulses: %d', total_pulses), ...
      'FontSize', 11, ...
      'BackgroundColor', [1 1 1 0.7]);
 
-
 %% 
 % 保存结果
 saveas(gcf, fullfile(output_dir, 'Smart_Normalized_Distribution.png'));
-writetable(norm_data, fullfile(output_dir, 'Smart_Combined_Data.xlsx'));
+writetable(all_norm_data, fullfile(output_dir, 'Smart_Combined_Data.xlsx'));
 
 fprintf('智能处理完成！结果已保存至: %s\n', output_dir);
