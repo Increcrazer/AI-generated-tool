@@ -35,3 +35,11 @@ Yuanfei Gao and Zhiliang Yuan, "Suppression of patterning effect using IQ modula
 将statelabel_patternanalysis_SDV封装为一个函数，但是不输出任何图像，可以批量输出模式效应的统计分析表格，效果如下：
 
 ![](https://s2.loli.net/2025/07/31/YemhBsPGaQE2g31.png)
+
+## patternplot_SDV说明
+对statelabel_patternanalysis_SDV_patch输出的一些列表格进行进一步处理，以将这些大批量表格先各自按照SS的平均值计数进行归一化，再进行拼接，这样可以避免长时间采数导致的功率漂移也被算入pattern effect的影响，然后再绘制pattern频数图：
+
+![](https://s2.loli.net/2025/07/31/dNDyjvs87A5IeWG.png)
+
+
+
