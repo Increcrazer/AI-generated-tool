@@ -108,7 +108,7 @@ function [nu_opt, fval] = linprog_sigma_y1h1(qZ, pk, k_plus, k_minus, Dk_B, n, c
     % 目标函数构建
     f = zeros(3*3*length(n), 1);
     for i = 1:3
-        f((i-1)*3*length(n)+2) = qZ^2 * pk(1) * pk(i) * k_minus(1) * exp(-k_minus(1));
+        f((i-1)*length(n)+2) = qZ^2 * pk(1) * pk(i) * k_minus(1) * exp(-k_minus(1));
     end
     
     % 使用更高精度的约束构建方式
@@ -223,7 +223,7 @@ function [nu_opt, fval] = linprog_sigma_h1h1(qX, pk, k_plus, k_minus, ek_B, n, t
     % 目标函数构建
     f = zeros(3*3*length(n), 1);
     for i = 1:3
-        f((i-1)*3*length(n)+2) = qX^2 * pk(1) * pk(i) * k_plus(1) * exp(-k_plus(1));
+        f((i-1)*length(n)+2) = qX^2 * pk(1) * pk(i) * k_plus(1) * exp(-k_plus(1));
     end
     
     % 使用更高精度的约束构建方式
