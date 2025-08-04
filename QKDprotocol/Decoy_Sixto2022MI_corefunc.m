@@ -329,6 +329,7 @@ function [nu_opt, fval] = linprog_sigma_h1h1(qX, pk, k_plus, k_minus, ek_B, n, t
     
     % 求解线性规划
     [nu_opt, fval] = linprog(-f, A, b, [], [], zeros(total_vars,1), ones(total_vars,1), [], options);
+    fval = -fval;
 end
 
 %%
