@@ -109,6 +109,7 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX] = Decoy_Lim2014_coref
     R_bitpersecond = l./N.*f;
 end
 
+%%
 function p_dc = calculate_p_dc(dc_count, gate_width)
     p_dc_X = (dc_count(1) + dc_count(2))./2.*gate_width./1;   % 假设超导前两个通道用来检偏X  
     p_dc_Z = (dc_count(3) + dc_count(4))./2.*gate_width./1;   % 假设超导后两个通道用来检偏Z 
