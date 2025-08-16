@@ -3,14 +3,15 @@ Pout = 10^(Pout_dBm/10);
 lambda = 1550 * 10^(-9); % 波长 (m)
 sp_energy = 6.626e-34 * 3e8 / lambda; % 单光子能量 (J)
 rou_1530 = 3.2e-9; % 拉曼散射系数 (W⁻¹·km⁻¹)
-eta = 0.7; % 探测效率
+eta = 0.8; % 探测效率
+filter_FWHM = 0.03; % 30pm,nm为单位
 alpha_lg = 0.2; % 光纤损耗 (dB/km)
 alpha_ln = log(10)/10 * alpha_lg; % 转换为线性单位 (Np/km)
 L = 0:100; % 光纤长度（km）
 
 % 计算前向和后向拉曼散射功率 (mW)
-Pram_f_power = Pout .* L * rou_1530 * eta; 
-Pram_b_power = Pout .* sinh(alpha_ln * L) / alpha_ln * rou_1530 * eta;
+Pram_f_power = Pout .* L * rou_1530 * eta * filter_FWHM; 
+Pram_b_power = Pout .* sinh(alpha_ln * L) / alpha_ln * rou_1530 * eta * filter_FWHM;
 
 % 计算光子数率 (光子数/秒)
 Pram_f_photon = Pram_f_power * 1e-3 / sp_energy; % 功率 (mW → W) → 光子数/秒
@@ -23,10 +24,13 @@ semilogy(L, Pram_f_power, 'LineWidth', 2, 'Color', [0, 0.5, 0.8], 'DisplayName',
 hold on;
 semilogy(L, Pram_b_power, 'LineWidth', 2, 'Color', [0.8, 0.2, 0.2], 'DisplayName', 'Backward Raman (Power)');
 ylabel('Raman Power (mW)', 'FontSize', 12);
+hold on;
 
 yyaxis right; % 右侧轴：光子数率 (光子数/秒)
 plot(L, Pram_f_photon, '--', 'LineWidth', 2, 'Color', [0, 0.7, 0.3], 'DisplayName', 'Forward Raman (Photon Rate)');
+hold on;
 plot(L, Pram_b_photon, '--', 'LineWidth', 2, 'Color', [1, 0.5, 0], 'DisplayName', 'Backward Raman (Photon Rate)');
+hold on;
 ylabel('Photon Rate (photons/s)', 'FontSize', 12);
 hold off;
 
