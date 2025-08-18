@@ -109,10 +109,16 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX] = Decoy_Lim2014_coref
     else
         l = 0;
     end
-    if l < 0 || l > N
+    if l < 0 || l >= N
         l = 0;
     end
     R_bitperpulse= l./N;
+
+    %% 加这一个纯属因为优化时会有坏值，matlab的问题
+    if R_bitperpulse >= 1
+        R_bitperpulse = 0;
+    end
+    
     R_bitpersecond = l./N.*f;
 end
 
