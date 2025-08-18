@@ -105,8 +105,11 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX] = Decoy_Lim2014_coref
     
     %% 计算密钥率
     if phi_X > 0
-        l = calculate_l(SX_0, SX_1, phi_X, f_EC.*binary_entropy(e_obs).*nX, epsilon_sec, epsilon_cor);
+        l = real(calculate_l(SX_0, SX_1, phi_X, f_EC.*binary_entropy(e_obs).*nX, epsilon_sec, epsilon_cor));
     else
+        l = 0;
+    end
+    if l < 0 || l > N
         l = 0;
     end
     R_bitperpulse= l./N;
