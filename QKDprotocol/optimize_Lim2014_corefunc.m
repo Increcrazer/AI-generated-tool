@@ -120,18 +120,6 @@ function R = fitnessFunction(x, L)
     R = -R_bitperpulse; % 取负因为GA默认最小化
 end
 
-function [c, ceq] = constraints(x)
-    % 提取变量
-    k = x(1:3);  % k(1), k(2), k(3)
-    pk = x(4:6); % pk(1), pk(2), pk(3)
-    
-    % 非线性不等式约束：k₁/k₃ > 100 → 转换为 k₁ - 100*k₃ > 0
-    c = -(k(1) - 100*k(3)); % GA默认处理 c ≤ 0，因此取负
-    
-    % 非线性等式约束（无，保留原线性等式约束）
-    ceq = [];
-end
-
 function [epsilon_cor, epsilon_sec, qX, N, f, gate_width, width_3dB, ...
          alpha, eta_Bob_detect, e_mis_X, e_mis_Z, f_EC, ...
           p_ap, dc_count, deadtime] = parameters()
