@@ -67,8 +67,8 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX] = Decoy_Lim2014_coref
     ek_z = Pz.*pk.*(p_dc_Z + e_mis_Z.*(1-exp(-eta_sys .*k)) + p_ap.*Dk_z./2); % B端探测z基到且出错的概率
     
 %     %%% Rusca 2018 %%%
-%     e_k_x = Px.*pk.*(p_dc_X./2 + e_mis_X.*(1-exp(-eta_sys .*k))).*Cdt_x; % B端探测x基到且出错的概率   
-%     e_k_z = Pz.*pk.*(p_dc_Z./2 + e_mis_Z.*(1-exp(-eta_sys .*k))).*Cdt_z; % B端探测z基到且出错的概率
+%     ek_x = Px.*pk.*(p_dc_X./2 + e_mis_X.*(1-exp(-eta_sys .*k))).*Cdt_x; % B端探测x基到且出错的概率   
+%     ek_z = Pz.*pk.*(p_dc_Z./2 + e_mis_Z.*(1-exp(-eta_sys .*k))).*Cdt_z; % B端探测z基到且出错的概率
     
     %% 计算计算B端各强度态误码数目
     m_X = N.*ek_x;  % B端接收的X基各强度态出错的数目
@@ -104,7 +104,11 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX] = Decoy_Lim2014_coref
     phi_X = calculate_phi_X(SX_1, nuZ_1, SZ_1, epsilon_sec);
     
     %% 计算密钥率
-    l = calculate_l(SX_0, SX_1, phi_X, f_EC.*binary_entropy(e_obs).*nX, epsilon_sec, epsilon_cor);
+    if phi_X > 0
+        l = calculate_l(SX_0, SX_1, phi_X, f_EC.*binary_entropy(e_obs).*nX, epsilon_sec, epsilon_cor);
+    else
+        l = 0;
+    end
     R_bitperpulse= l./N;
     R_bitpersecond = l./N.*f;
 end
