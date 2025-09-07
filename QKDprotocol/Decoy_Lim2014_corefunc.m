@@ -42,7 +42,7 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX] = Decoy_Lim2014_coref
     
 %     %%% Rusca 2018 %%%
 %     Dk_x = Px.*pk.*((1 - exp(-eta_sys.*k)) + p_dc_X);  % B端探测每个强度态的概率(不含死时间修正)  
-%     Cdt_x =  1./(1 + f.*Rk_x.*deadtime);    % B端探测器死时间修正,这里的Rk_x是Lim 2014的
+%     Cdt_x =  1./(1 + f.*sum(Rk_x).*deadtime);    % B端探测器死时间修正,这里的Rk_x是Lim 2014的
 %     Rk_x = Dk_x.*Cdt_x;  % B端探测每个强度态的概率(含死时间修正)
     
     %% 计算B端收到每个强度态的概率（Z基）
@@ -52,7 +52,7 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX] = Decoy_Lim2014_coref
     
 %     %%% Rusca 2018 %%%
 %     Dk_z = Pz.*pk.*((1 - exp(-eta_sys.*k)) + p_dc_Z);  % B端探测每个强度态的概率(不含死时间修正)  
-%     Cdt_z =  1./(1 + f.*Rk_z.*deadtime);    % B端探测器死时间修正,这里的Rk_z是Lim 2014的
+%     Cdt_z =  1./(1 + f.*sum(Rk_z).*deadtime);    % B端探测器死时间修正,这里的Rk_z是Lim 2014的
 %     Rk_z = Dk_z.*Cdt_z;  % B端探测每个强度态的概率(含死时间修正)
     
     %% 计算计算B端各强度态数目
