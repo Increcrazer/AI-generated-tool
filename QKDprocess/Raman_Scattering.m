@@ -8,7 +8,7 @@ eta = 0.8; % 超导探测效率
 filter_FWHM = 0.8; % 100GHz,nm为单位
 alpha_lg = 0.2; % 光纤损耗 (dB/km)
 alpha_ln = log(10)/10 * alpha_lg; % 转换为线性单位 (Np/km)
-L = 0:100; % 光纤长度（km）
+L = 0:200; % 光纤长度（km）
 
 % 计算前向和后向拉曼散射功率 (mW)
 Pram_f_power = Pout .* L * rou_1570 * eta * filter_FWHM; 
@@ -43,7 +43,6 @@ grid on;
 box on;
 
 % 调整坐标轴范围
-xlim([1, 100]);
 yyaxis left;
 ylim([0, max([Pram_f_power, Pram_b_power]) * 1.1]); % 左侧Y轴范围
 yyaxis right;
