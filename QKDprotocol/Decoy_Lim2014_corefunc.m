@@ -36,24 +36,24 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX] = Decoy_Lim2014_coref
     Pz = qZ.^2; % AB都选Z基概率
     
     %% 计算B端收到每个强度态的概率（X基）
-    %%% Lim 2014 %%%
-    Dk_x = Px.*pk.*(1 - (1 - 2.*p_dc_X).*exp(-eta_sys.*k));
-    Rk_x = Dk_x.*(1 + p_ap);
+%     %%% Lim 2014 %%%
+%     Dk_x = Px.*pk.*(1 - (1 - 2.*p_dc_X).*exp(-eta_sys.*k));
+%     Rk_x = Dk_x.*(1 + p_ap);
     
-%     %%% Rusca 2018 %%%
-%     Dk_x = Px.*pk.*((1 - exp(-eta_sys.*k)) + p_dc_X);  % B端探测每个强度态的概率(不含死时间修正)  
-%     Cdt_x =  1./(1 + f.*sum(Rk_x).*deadtime);    % B端探测器死时间修正,这里的Rk_x是Lim 2014的
-%     Rk_x = Dk_x.*Cdt_x;  % B端探测每个强度态的概率(含死时间修正)
+    %%% Rusca 2018 %%%
+    Dk_x = Px.*pk.*(1 - (1 - 2.*p_dc_X).*exp(-eta_sys.*k));
+    Cdt_x =  1./(1 + f.*sum(Dk_x).*deadtime);    % B端探测器死时间修正
+    Rk_x = Cdt_x.*Dk_x;  % B端探测每个强度态的概率(含死时间修正)
     
     %% 计算B端收到每个强度态的概率（Z基）
-    %%% Lim 2014 %%%
-    Dk_z = Pz.*pk.*(1 - (1 - 2.*p_dc_Z).*exp(-eta_sys.*k));
-    Rk_z = Dk_z.*(1 + p_ap);
+%     %%% Lim 2014 %%%
+%     Dk_z = Pz.*pk.*(1 - (1 - 2.*p_dc_Z).*exp(-eta_sys.*k));
+%     Rk_z = Dk_z.*(1 + p_ap);
     
-%     %%% Rusca 2018 %%%
-%     Dk_z = Pz.*pk.*((1 - exp(-eta_sys.*k)) + p_dc_Z);  % B端探测每个强度态的概率(不含死时间修正)  
-%     Cdt_z =  1./(1 + f.*sum(Rk_z).*deadtime);    % B端探测器死时间修正,这里的Rk_z是Lim 2014的
-%     Rk_z = Dk_z.*Cdt_z;  % B端探测每个强度态的概率(含死时间修正)
+    %%% Rusca 2018 %%%
+    Dk_z = Pz.*pk.*(1 - (1 - 2.*p_dc_Z).*exp(-eta_sys.*k));
+    Cdt_z =  1./(1 + f.*sum(Dk_z).*deadtime);    % B端探测器死时间修正
+    Rk_z = Cdt_z.*Dk_z;  % B端探测每个强度态的概率(含死时间修正)
     
     %% 计算计算B端各强度态数目
     n_X = N.*Rk_x;   % B端接收的X基各强度态数目
@@ -62,13 +62,13 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX] = Decoy_Lim2014_coref
     nZ = sum(n_Z);  % B端一共收到的Z基态数目
     
     %% 计算B端错误率
-    %%% Lim 2014 %%%
-    ek_x = Px.*pk.*(p_dc_X + e_mis_X.*(1-exp(-eta_sys .*k)) + p_ap.*Dk_x./2); % B端探测x基到且出错的概率   
-    ek_z = Pz.*pk.*(p_dc_Z + e_mis_Z.*(1-exp(-eta_sys .*k)) + p_ap.*Dk_z./2); % B端探测z基到且出错的概率
+%     %%% Lim 2014 %%%
+%     ek_x = Px.*pk.*(p_dc_X + e_mis_X.*(1-exp(-eta_sys .*k)) + p_ap.*Dk_x./2); % B端探测x基到且出错的概率   
+%     ek_z = Pz.*pk.*(p_dc_Z + e_mis_Z.*(1-exp(-eta_sys .*k)) + p_ap.*Dk_z./2); % B端探测z基到且出错的概率
     
-%     %%% Rusca 2018 %%%
-%     ek_x = Px.*pk.*(p_dc_X./2 + e_mis_X.*(1-exp(-eta_sys .*k))).*Cdt_x; % B端探测x基到且出错的概率   
-%     ek_z = Pz.*pk.*(p_dc_Z./2 + e_mis_Z.*(1-exp(-eta_sys .*k))).*Cdt_z; % B端探测z基到且出错的概率
+    %%% Rusca 2018 %%%
+    ek_x = Px.*pk.*(p_dc_X + e_mis_X.*(1-exp(-eta_sys .*k))).*Cdt_x; % B端探测x基到且出错的概率   
+    ek_z = Pz.*pk.*(p_dc_Z + e_mis_Z.*(1-exp(-eta_sys .*k))).*Cdt_z; % B端探测z基到且出错的概率
     
     %% 计算计算B端各强度态误码数目
     m_X = N.*ek_x;  % B端接收的X基各强度态出错的数目
@@ -104,21 +104,17 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX] = Decoy_Lim2014_coref
     phi_X = calculate_phi_X(SX_1, nuZ_1, SZ_1, epsilon_sec);
     
     %% 计算密钥率
-    if phi_X > 0
+    if isfinite(phi_X) && phi_X >= 0 && phi_X <= 0.5 && e_obs >= 0 && e_obs <= 0.5 % 添加有效性检查
         l = real(calculate_l(SX_0, SX_1, phi_X, f_EC.*binary_entropy(e_obs).*nX, epsilon_sec, epsilon_cor));
     else
         l = 0;
     end
+
     if l < 0 || l >= N
         l = 0;
     end
-    R_bitperpulse= l./N;
-
-    %% 加这一个纯属因为优化时会有坏值，matlab的问题
-    if R_bitperpulse >= 1
-        R_bitperpulse = 0;
-    end
     
+    R_bitperpulse= l./N;
     R_bitpersecond = l./N.*f;
 end
 
@@ -195,10 +191,12 @@ end
 
 %%
 function gamma = calculate_gamma(a, b, c, d)
-    gamma = sqrt(((c + d) .* (1 - b) .* b) ./ (c .* d .* log10(2)) .* log2(((c + d) .* 21.^2) ./ ((c .* d .* (1 - b) .* b) .* a.^2)));
-%     if imag(y) > 0 
-%         y = 0;
-%     end
+    eqa = ((c + d) .* (1 - b) .* b) ./ (c .* d .* log10(2)) .* log2(((c + d) .* 21.^2) ./ ((c .* d .* (1 - b) .* b) .* a.^2));
+    if eqa >= 0
+        gamma = sqrt(eqa);
+    else
+        gamma = inf;
+    end
 end
 
 function tau_n = calculate_tau_n(K, Pk, n)
