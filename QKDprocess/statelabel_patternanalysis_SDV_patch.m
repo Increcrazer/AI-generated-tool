@@ -32,8 +32,8 @@ function patternanalysis_SDV_function(filename, arrange_list)
     period = 1 /freq *10^12;    % [ps]
     MINPEAKDISTANCE = period/bin_width - 3;
 
-    time = csvread(filename, 0, 0);
-    data = csvread(filename, 1, 0);
+    time = readmatrix(filename, 'Range', '1:1');
+    data = readmatrix(filename, 'Range', '2:2');
     [~,index_list] = findpeaks(data,'MINPEAKHEIGHT',1,'MINPEAKDISTANCE',MINPEAKDISTANCE);  
     index_list = index_list(2:end -1);
     index_first = index_list(1);
