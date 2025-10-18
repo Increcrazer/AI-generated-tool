@@ -1,19 +1,16 @@
 %% user set
 filename = 'SDV-IQ0627.csv';
 bin_width = 16; % [ps]
-bin_number = 100000;
 freq = 1.25 *10^9;  % [Hz]
-pseudo_length = 32;
 count_resol = 25;  % count resolution
-arrange_list = char("SDVVSSDDSSVSVSSDSSVD");
+arrange_list = char("VVSSDSSVSV");
 
 %% find states of the pulses 
 period = 1 /freq *10^12;    % [ps]
-pseudo_time = 5*pseudo_length *period;   % [ps] 取5倍伪随机数长度
 MINPEAKDISTANCE = period/bin_width - 3;
 
-time = csvread(filename, 0, 0,[0,0,0,pseudo_time /bin_width]);
-data = csvread(filename, 1, 0,[1,0,1,pseudo_time /bin_width]);
+time = readmatrix(filename, 'Range', '1:1');
+data = readmatrix(filename, 'Range', '2:2');
 [~,index_list] = findpeaks(data,'MINPEAKHEIGHT',1,'MINPEAKDISTANCE',MINPEAKDISTANCE);  
 index_list = index_list(2:end -1);
 index_first = index_list(1);
@@ -297,7 +294,7 @@ data = data(index_first-period /bin_width /2:index_last-period /bin_width /2);
 H = semilogy(time,data);
 grid on;
 xmin = time((arrange_list_order-1) *period /bin_width);
-xmax = time((arrange_list_order+length(arrange_list)-1) *period /bin_width);
+xmax = time((arrange_list_order-1+length(arrange_list)) *period /bin_width);
 xlim([xmin, xmax]);
 % ylim([0,5]);
 xlabel('time/ps','FontName','Times New Roman','fontsize',18);
