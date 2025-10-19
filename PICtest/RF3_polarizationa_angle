@@ -1,0 +1,94 @@
+load('RF3.mat','data');
+selected = data(:,7:9,:);
+voltage_RF2_num = size(selected, 3);   
+voltage_RF3_num = size(selected, 1);
+theta_matrix = zeros(voltage_RF2_num, voltage_RF3_num);
+
+for i = 1:voltage_RF2_num
+    a = [selected(1,1,i), selected(1,2,i), selected(1,3,i)];
+    b = [selected(2,1,i), selected(2,2,i), selected(2,3,i)];
+    normal_axis = cross(a,b);
+    for j = 1:voltage_RF3_num
+        c = [selected(j,1,i), selected(j,2,i), selected(j,3,i)];
+        theta_matrix(i,j) = signed_angle_between_vectors(a, c, normal_axis);
+    end
+        
+end
+
+%% draw Phase-RF3
+FN = 'Arial';
+FS = 16;
+fig_pos = [200,200,800,600];
+plot_pos = [0.13,0.12,0.8,0.78];
+
+RGB1 = lines(voltage_RF2_num);  % lines颜色图专门为区分多条线设计
+
+sz = 30;
+lw = 0.5;
+f1 = figure(1);
+for i = 1:voltage_RF2_num
+    scatter(data(:,2,i),theta_matrix(i,:),sz,'linewidth',lw,'markerfacecolor',RGB1(i,:),'markeredgecolor',RGB1(i,:));
+    hold on;
+end
+hold off;
+box on;
+
+legend_labels = cell(voltage_RF2_num, 1);
+for i = 1:voltage_RF2_num
+    legend_labels{i} = sprintf('RF2 = %.3gV', data(1,1,i));
+end
+
+% 绘图循环...
+legend(legend_labels, 'box', 'off', 'Location', 'northwest');
+
+xlabel('Voltage (V)');
+ylabel('Phase (\pi)');
+set(gca,'FontName',FN,'FontSize',FS);
+set(gca,'position',[0.12 0.15, 0.8 0.8]);
+
+%% 
+function theta = signed_angle_between_vectors(a, b, normal_axis)
+    % 计算从 a 到 b 的有符号旋转角度（0°~360°）
+    % normal_axis: 旋转轴方向（默认用叉积方向）
+    
+    a = a(:)'; % 确保是行向量
+    b = b(:)';
+    
+    % 计算最小夹角
+    dot_product = dot(a, b);
+    norm_a = norm(a);
+    norm_b = norm(b);
+    cos_theta = dot_product / (norm_a * norm_b);
+    theta = acosd(cos_theta);
+    
+    % 计算叉积
+    cross_product = cross(a, b);
+    cross_norm = norm(cross_product);
+    
+    % 如果没有提供旋转轴，默认用叉积方向
+    if nargin < 3 || isempty(normal_axis)
+        if cross_norm > eps % 避免除以零
+            normal_axis = cross_product / cross_norm;
+        else
+            normal_axis = [0, 0, 1]; % 默认 z 轴
+        end
+    else
+        normal_axis = normal_axis(:)';
+    end
+    
+    % 判断旋转方向
+    if cross_norm < eps % 平行或反平行
+        if dot_product >= 0
+            theta = 0; % 同向
+        else
+            theta = 180; % 反向
+        end
+    else
+        % 检查旋转方向是否与 normal_axis 同向
+        if dot(cross_product, normal_axis) >= 0
+            theta = theta; % 逆时针
+        else
+            theta = 360 - theta; % 顺时针
+        end
+    end
+end
