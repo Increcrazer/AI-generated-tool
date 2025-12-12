@@ -1,15 +1,41 @@
-%% 并非原始Sixto2022 TG，而是使用Trefilov2025的L+1距离使用L距离的输出yn进行迭代的思想，由于距离之间存在参数传递，所以无法写成corefunc形式
-%% Sixto2022 TG的FIG.3由于未知原因复现不出，大概率是作者代码写错了
-%% 该版本经师弟yjk修改跑通后进行修订整理
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 并非原始Sixto2022 TG，而是使用Trefilov2025的L+1距离使用L距离的输出yn进行迭代、的思想，由于距离之间存在参数传递，所以无法写成corefunc形式
+% Sixto2022 TG的FIG.3由于未知原因复现不出，大概率是作者代码写错了
+% 该版本经师弟yjk修改跑通后进行修订整理
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% user parameter set
-% gamma_tilde_S = [0.5 0.51 0.503];
-% gamma_tilde_D = [0.21 0.172 0.165];
-% gamma_tilde_V = [10.^-4 10.^-4 10.^-4];
-% 
-% sigma_tilde_S = [0.032.*0.5 0.032.*0.51 0.034.*0.503];
-% sigma_tilde_D = [0.07.*0.21 0.09.*0.172 0.091.*0.165];
-% sigma_tilde_V = 10.^(-5).*gamma_tilde_V;
+ncut = 20;
+t = 4;
+pk = [0.98,0.01,0.01];
+
+pd = 7.2.*10.^-8;   
+qZ = 0.99;  
+qX = 0.01;  
+alpha = 0.2;    
+eta_det = 0.65; 
+
+delta_A = 0.08; 
+f_EC = 1.16;    
+n = 0:ncut;
+eta_ch = 10.^(-alpha.*L./10);  
+eta = eta_ch.*eta_det;  
+
+gamma_tilde_S = [0.5 0.51 0.503];
+gamma_tilde_D = [0.21 0.172 0.165];
+gamma_tilde_V = [10.^-4 10.^-4 10.^-4];
+
+sigma_tilde_S = [0.032.*0.5 0.032.*0.51 0.034.*0.503];
+sigma_tilde_D = [0.07.*0.21 0.09.*0.172 0.091.*0.165];
+sigma_tilde_V = 10.^(-5).*gamma_tilde_V;
+
+%% 生成距离（线性/对数）
+nL = 100;
+l = linspace(0,1,nL);
+Lmax = 150;%信道长度
+% L = linspace(0,Lmax,nL);
+dens_var = 50;%数据点稀疏程度控制
+L = Lmax * log10(1 + dens_var*l)/log10(1+dens_var);
 
 %% literature parameter set, to test the validity of the code
 %% Sixto2022 
@@ -41,13 +67,13 @@
 % sigma_tilde_V = [0.011438 0.011438 0.011438];
 
 %% System A（有相关性）
-gamma_tilde_S = [0.639209 0.639251 0.635059];
-gamma_tilde_D = [0.278423 0.267539 0.273149];
-gamma_tilde_V = [0.042104 0.042053 0.041681];
-
-sigma_tilde_S = [0.025230 0.025164 0.024665];
-sigma_tilde_D = [0.011295 0.011064 0.010465];
-sigma_tilde_V = [0.011465 0.011400 0.011308];
+% gamma_tilde_S = [0.639209 0.639251 0.635059];
+% gamma_tilde_D = [0.278423 0.267539 0.273149];
+% gamma_tilde_V = [0.042104 0.042053 0.041681];
+% 
+% sigma_tilde_S = [0.025230 0.025164 0.024665];
+% sigma_tilde_D = [0.011295 0.011064 0.010465];
+% sigma_tilde_V = [0.011465 0.011400 0.011308];
 
 %% 2025 System B
 %% System B 归一化（无相关）
@@ -76,19 +102,7 @@ sigma_tilde_V = [0.011465 0.011400 0.011308];
 % sigma_tilde_D = mu.*sigma_tilde_D0;
 % sigma_tilde_V = mu.*sigma_tilde_V0;
 
-%% 生成距离（线性/对数）
-nL = 100;
-l = linspace(0,1,nL);
-Lmax = 180;%信道长度
-% L = linspace(0,Lmax,nL);
-dens_var = 50;%数据点稀疏程度控制
-L = Lmax * log10(1 + dens_var*l)/log10(1+dens_var);
-
 %% 参数初始化
-ncut = 20;
-t = 4;
-pk = [0.5,0.3,0.2];
-
 sigma_hat_S = sigma_tilde_S./gamma_tilde_S;
 sigma_hat_D = sigma_tilde_D./gamma_tilde_D;
 sigma_hat_V = sigma_tilde_V./gamma_tilde_V;
@@ -104,18 +118,6 @@ sigma_V = invert_sigma(gamma_tilde_V, sigma_tilde_V, gamma_tilde_V - t.*sigma_ti
 gamma = [gamma_S; gamma_D; gamma_V];
 sigma = [sigma_S'; sigma_D'; sigma_V'];
 sigma_tilde = [sigma_tilde_S; sigma_tilde_D; sigma_tilde_V];
-
-pd = 7.2.*10.^-8;   
-qZ = 0.99;  
-qX = 0.01;  
-alpha = 0.2;    
-eta_det = 0.65; 
-
-delta_A = 0.08; 
-f_EC = 1.16;    
-n = 0:ncut;
-eta_ch = 10.^(-alpha.*L./10);  
-eta = eta_ch.*eta_det;  
 
 % 预先分配存储空
 infinite_key = zeros(length(L),1);
