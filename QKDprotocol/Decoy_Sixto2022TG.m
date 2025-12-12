@@ -1,3 +1,7 @@
+%% 并非原始Sixto2022 TG，而是使用Trefilov2025的L+1距离使用L距离的输出yn进行迭代的思想，由于距离之间存在参数传递，所以无法写成corefunc形式
+%% Sixto2022 TG的FIG.3由于未知原因复现不出，大概率是作者代码写错了
+%% 该版本经师弟yjk修改跑通后进行修订整理
+
 %% user parameter set
 % gamma_tilde_S = [0.5 0.51 0.503];
 % gamma_tilde_D = [0.21 0.172 0.165];
