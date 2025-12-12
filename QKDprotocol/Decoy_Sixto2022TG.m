@@ -102,7 +102,7 @@ L = Lmax * log10(1 + dens_var*l)/log10(1+dens_var);
 % sigma_tilde_D = mu.*sigma_tilde_D0;
 % sigma_tilde_V = mu.*sigma_tilde_V0;
 
-%% 参数初始化
+%% 强度模式形式整理
 sigma_hat_S = sigma_tilde_S./gamma_tilde_S;
 sigma_hat_D = sigma_tilde_D./gamma_tilde_D;
 sigma_hat_V = sigma_tilde_V./gamma_tilde_V;
