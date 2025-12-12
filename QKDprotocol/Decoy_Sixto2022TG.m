@@ -32,9 +32,9 @@ sigma_tilde_V = 10.^(-5).*gamma_tilde_V;
 %% 生成距离（线性/对数）
 nL = 100;
 l = linspace(0,1,nL);
-Lmax = 150;%信道长度
+Lmax = 150;    %信道长度
 % L = linspace(0,Lmax,nL);
-dens_var = 50;%数据点稀疏程度控制
+dens_var = 50;    %数据点稀疏程度控制
 L = Lmax * log10(1 + dens_var*l)/log10(1+dens_var);
 
 %% literature parameter set, to test the validity of the code
