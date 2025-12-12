@@ -76,7 +76,7 @@ L = Lmax * log10(1 + dens_var*l)/log10(1+dens_var);
 % sigma_tilde_V = [0.011465 0.011400 0.011308];
 
 %% 2025 System B
-%% System B 归一化（无相关）
+%% System B 归一化（无相关性）
 % gamma_tilde_S0 = [1 1 1];
 % gamma_tilde_D0 = [0.331205 0.331205 0.331205];
 % gamma_tilde_V0 = [0.080408 0.080408 0.080408];
@@ -84,7 +84,7 @@ L = Lmax * log10(1 + dens_var*l)/log10(1+dens_var);
 % sigma_tilde_S0 = [0.03082 0.03082 0.03082];
 % sigma_tilde_D0 = [0.031052 0.031052 0.031052];
 % sigma_tilde_V0 = [0.019021 0.019021 0.019021];
-%% System B 归一化（有相关）
+%% System B 归一化（有相关性）
 % gamma_tilde_S0 = [0.996082 1.004939 1.002882];
 % gamma_tilde_D0 = [0.32323 0.339161 0.339283];
 % gamma_tilde_V0 = [0.081123 0.080498 0.078888];
