@@ -1,13 +1,20 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 并非原始Sixto2022 TG，而是使用Trefilov2025中L+1距离使用L距离的输出yn进行迭代的思想。由于距离之间存在参数传递，所以无法写成corefunc形式
 % Sixto2022 TG的FIG.3由于未知原因复现不出，大概率是作者代码写错了
-% 该版本经师弟yjk修改跑通后修订整理
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% user parameter set
 ncut = 20;
 t = 4;
-pk = [0.98,0.01,0.01];
+pk = [0.998,0.001,0.001];
+
+gamma_tilde_S = [0.5 0.51 0.503];
+gamma_tilde_D = [0.21 0.172 0.165];
+gamma_tilde_V = [10.^-4 10.^-4 10.^-4];
+
+sigma_tilde_S = [0.032.*0.5 0.032.*0.51 0.034.*0.503];
+sigma_tilde_D = [0.07.*0.21 0.09.*0.172 0.091.*0.165];
+sigma_tilde_V = 10.^(-5).*gamma_tilde_V;
 
 pd = 7.2.*10.^-8;   
 qZ = 0.99;  
@@ -18,24 +25,17 @@ eta_det = 0.65;
 delta_A = 0.08; 
 f_EC = 1.16;    
 n = 0:ncut;
-eta_ch = 10.^(-alpha.*L./10);  
-eta = eta_ch.*eta_det;  
 
-gamma_tilde_S = [0.5 0.51 0.503];
-gamma_tilde_D = [0.21 0.172 0.165];
-gamma_tilde_V = [10.^-4 10.^-4 10.^-4];
-
-sigma_tilde_S = [0.032.*0.5 0.032.*0.51 0.034.*0.503];
-sigma_tilde_D = [0.07.*0.21 0.09.*0.172 0.091.*0.165];
-sigma_tilde_V = 10.^(-5).*gamma_tilde_V;
-
-%% 生成距离（线性/对数）
+% 生成距离（线性/对数）
 nL = 100;
 l = linspace(0,1,nL);
-Lmax = 150;    %信道长度
+Lmax = 160;    %信道长度
 % L = linspace(0,Lmax,nL);
 dens_var = 50;    %数据点稀疏程度控制
 L = Lmax * log10(1 + dens_var*l)/log10(1+dens_var);
+
+eta_ch = 10.^(-alpha.*L./10);  
+eta = eta_ch.*eta_det;  
 
 %% literature parameter set, to test the validity of the code
 %% Sixto2022 
@@ -92,7 +92,7 @@ L = Lmax * log10(1 + dens_var*l)/log10(1+dens_var);
 % sigma_tilde_S0 = [0.030962 0.030197 0.030115];
 % sigma_tilde_D0 = [0.030018 0.030004 0.029979];
 % sigma_tilde_V0 = [0.01879 0.019254 0.019157];
-% %% 真实值
+% % 真实值
 % % mu = 0.43/ 0.22/ 0.11
 % mu = 0.11;
 % gamma_tilde_S = mu.*gamma_tilde_S0;
@@ -125,35 +125,17 @@ infinite_key = zeros(length(L),1);
 %% 计算部分
 for i = 1:length(L)   
     [Dk_B, ek_B] = calculate_De_B(eta(i), pd, gamma, sigma, sigma_tilde, t, delta_A);  
-
     [y_tilde, h_tilde] = calculate_hy_tilde(delta_A, eta(i), pd, n);%计算参考产出率和误码率
-
     pn = calculate_pn(gamma, sigma, sigma_tilde, t, n);
     CStao = caculate_CStao(pk, pn, n);
     
     if i==1
-    [c_plus, c_minus, m_plus, m_minus, t_plus, t_minus, s_plus, s_minus] ...
-            = caculate_CScmts_ini(CStao, y_tilde, h_tilde, n);
+        [yn_ZS, hn_EXS, ZS1_bar_low, XS1_bar_low, EXS1_bar_up, ZS_bar, EZS_bar] ...
+                = caculate_decoypara(qZ, qX, pk, pn, CStao, y_tilde, h_tilde, Dk_B, ek_B, n, i);
     else
-    [c_plus, c_minus, m_plus, m_minus, t_plus, t_minus, s_plus, s_minus] ...
-            = caculate_CScmts_iterate(CStao, yn_ZS, hn_EXS, n);
+        [yn_ZS, hn_EXS, ZS1_bar_low, XS1_bar_low, EXS1_bar_up, ZS_bar, EZS_bar] ...
+                = caculate_decoypara(qZ, qX, pk, pn, CStao, yn_ZS, hn_EXS, Dk_B, ek_B, n, i);
     end
-    % 线性规划部分
-    [yn_ZS, ZS1_bar_low, ~] = linprog_sigma_y1h1(qZ, pk, pn, Dk_B, n, c_plus, c_minus, m_plus, m_minus);
-    XS1_bar_low = ZS1_bar_low*qX^2/qZ^2;
-    [hn_EXS, EXS1_bar_up, ~] = linprog_sigma_h1h1(qX, pk, pn, ek_B, n, t_plus, t_minus, s_plus, s_minus);%求解线性规划得到单光子错误率的上界
-    
-    % 对y和h进行修正，使之不为0和1
-    yn_ZS(yn_ZS>=1) = 1-1e-16;
-    yn_ZS(yn_ZS<=0) = 1e-16;
-    hn_EXS(hn_EXS>=1) = 1-1e-16;
-    hn_EXS(hn_EXS<=0) = 1e-16;
-
-    % 计算汇总值
-    [Zkk_bar, ~] = caculate_ZXkk_bar(qZ, qX, pk, Dk_B);
-    ZS_bar = sum(Zkk_bar(1,:));
-    [EZkk_bar, EXkk_bar] = caculate_Ekk_bar(qZ, qX, pk, ek_B);
-    EZS_bar = sum(EZkk_bar(1,:));
 
     % 存储结果
     infinite_key_temp = caculate_SKR(ZS1_bar_low, XS1_bar_low, EXS1_bar_up, ZS_bar, EZS_bar./ZS_bar, f_EC);
@@ -185,7 +167,33 @@ ax.YMinorTick = 'on';
 ax.XMinorTick = 'on';
 ax.GridAlpha = 0.3;
 
-%% infinite_key
+%% 
+function [yn_ZS, hn_EXS, ZS1_bar_low, XS1_bar_low, EXS1_bar_up, ZS_bar, EZS_bar] = caculate_decoypara(qZ, qX, pk, pn, CStao, y_tilde, h_tilde, Dk_B, ek_B, n, i)
+    if i == 1
+    [c_plus, c_minus, m_plus, m_minus, t_plus, t_minus, s_plus, s_minus] ...
+            = caculate_CScmts_ini(CStao, y_tilde, h_tilde, n);
+    else
+    [c_plus, c_minus, m_plus, m_minus, t_plus, t_minus, s_plus, s_minus] ...
+            = caculate_CScmts_iterate(CStao, y_tilde, y_tilde, n);
+    end
+    [yn_ZS, ZS1_bar_low, ~] = linprog_sigma_y1h1(qZ, pk, pn, Dk_B, n, c_plus, c_minus, m_plus, m_minus);
+    XS1_bar_low = ZS1_bar_low*qX^2/qZ^2;
+    [hn_EXS, EXS1_bar_up, ~] = linprog_sigma_h1h1(qX, pk, pn, ek_B, n, t_plus, t_minus, s_plus, s_minus);    
+    
+    % 对y和h进行修正，使之不为0和1
+    yn_ZS(yn_ZS>=1) = 1-1e-16;
+    yn_ZS(yn_ZS<=0) = 1e-16;
+    hn_EXS(hn_EXS>=1) = 1-1e-16;
+    hn_EXS(hn_EXS<=0) = 1e-16;
+    
+    % 计算汇总值
+    [Zkk_bar, ~] = caculate_ZXkk_bar(qZ, qX, pk, Dk_B);
+    ZS_bar = sum(Zkk_bar(1,:));
+    [EZkk_bar, ~] = caculate_Ekk_bar(qZ, qX, pk, ek_B);
+    EZS_bar = sum(EZkk_bar(1,:));
+end
+
+%% 
 function infinite_key = caculate_SKR(ZS1_bar_low, XS1_bar_low, EXS1_bar_up, ZS_bar, Etol, f_EC)
     infinite_key = ZS1_bar_low.*(1 - binary_entropy(EXS1_bar_up./XS1_bar_low)) - f_EC.*ZS_bar.*binary_entropy(Etol);
 end
@@ -221,9 +229,9 @@ function [nu_opt, fval, exitflag] = linprog_sigma_y1h1(qZ, pk, pn, Dk_B, n, c_pl
     % 计算各约束数量
     num_constr1 = 3*3;  % 约束1的数量
     num_constr2 = 3*3;  % 约束2的数量
-    num_constr3 = 3*3*2*length(n); % 约束3的数量 (2因为bb≠a)
-    num_constr4 = 3*3*2*length(n); % 约束4的数量
-    num_constr5 = 3*3*(length(n)-1);%单调性约束
+    num_constr3 = 3*3*2*length(n);  % 约束3的数量 (2因为bb≠a)
+    num_constr4 = 3*3*2*length(n);  % 约束4的数量
+    num_constr5 = 3*3*(length(n)-1);    %单调性约束
     total_constr = num_constr1 + num_constr2 + num_constr3 + num_constr4 + num_constr5;
 
     % 目标函数构建 
@@ -340,8 +348,9 @@ function [nu_opt, fval, exitflag] = linprog_sigma_h1h1(qX, pk, pn, ek_B, n, t_pl
     num_constr1 = 3*3;  % 约束1的数量
     num_constr2 = 3*3;  % 约束2的数量
     num_constr3 = 3*3*2*length(n); % 约束3的数量 (2因为bb≠a)
-    num_constr4 = 3*3*2*length(n); % 约束4的数量
-    total_constr = num_constr1 + num_constr2 + num_constr3 + num_constr4;
+    num_constr4 = 3*3*2*length(n); % 约束4的数量 (2因为bb≠a)
+    num_constr5 = 3*3*(length(n)-1);    %单调性约束
+    total_constr = num_constr1 + num_constr2 + num_constr3 + num_constr4 + num_constr5;
 
     % 目标函数构建 
     f = zeros(3*3*length(n), 1);
@@ -421,6 +430,22 @@ function [nu_opt, fval, exitflag] = linprog_sigma_h1h1(qX, pk, pn, ek_B, n, t_pl
         end
     end
     
+    % 约束5: 单调性约束 h(a,c,k+1)>=h(a,c,k)
+    for a = 1:3
+        for c = 1:3
+            for i = 1:length(n)-1
+                    row = zeros(1, total_vars);
+                    pos_k = pos_convert(a,c,i, length(n));
+                    pos_kplus = pos_convert(a,c,i+1, length(n));
+                    row(pos_k) = 1;
+                    row(pos_kplus) = -1;
+                    A(constr_idx,:) = row;
+                    b(constr_idx) = 0;
+                    constr_idx = constr_idx + 1;
+            end
+        end
+    end
+    
     % 高精度求解选项
     options = optimoptions('linprog', ...
         'Algorithm', 'dual-simplex', ...  % 保持对偶单纯形法
@@ -432,11 +457,6 @@ function [nu_opt, fval, exitflag] = linprog_sigma_h1h1(qX, pk, pn, ek_B, n, t_pl
     % 求解线性规划
     [nu_opt, fval, exitflag] = linprog(-f, A, b, [], [], zeros(total_vars,1), ones(total_vars,1),  options);
     fval = -fval;
-end
-
-%%
-function pos = pos_convert(a, c, i, len_n)
-    pos = (a-1).*3.*len_n + (c-1).*len_n + i;
 end
 
 %%
@@ -692,7 +712,12 @@ function sigma_tilde = compute_sigma_tilde(gamma, sigma, lambda, Lambda)
     sigma_tilde = abs(sqrt(sigma.^2 .* (1 - term1 - term2)));
 end
 
-%% 
+%%
+function pos = pos_convert(a, c, i, len_n)
+    pos = (a-1).*3.*len_n + (c-1).*len_n + i;
+end
+
+%%
 function pdf = normal_pdf(gamma, sigma2, x)
     % 计算正态分布的概率密度函数
     % gamma: 均值（原公式中的 y）
