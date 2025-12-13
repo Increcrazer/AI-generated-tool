@@ -1,24 +1,25 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% 并非原始Sixto2022 TG，而是使用Trefilov2025中L+1距离使用L距离的输出yn_tilde和hn_tilde进行迭代的思想。由于距离之间存在参数传递，所以无法写成corefunc形式。
-% Sixto2022 TG的FIG.3由于未知原因复现不出，大概率是作者代码写错了。
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 并非原始Sixto2022 TG，而是使用Trefilov2025中L+1距离使用L距离的输出yn进行迭代的思想。由于距离之间存在参数传递，所以无法写成corefunc形式
+% Sixto2022 TG的FIG.3由于未知原因复现不出，大概率是作者代码写错了
+% matlab自带linprog算法会出现"-96@421"报错，原因来自于matlab内部，遂采用更强大的gurobi求解器。该求解器需要另外安装。
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% user parameter set
 ncut = 20;
 t = 4;
-pk = [0.998,0.001,0.001];
+pk = [0.5,0.25,0.25];
 
-gamma_tilde_S = [0.5 0.51 0.503];
-gamma_tilde_D = [0.21 0.172 0.165];
-gamma_tilde_V = [10.^-4 10.^-4 10.^-4];
+gamma_tilde_S = [0.6 0.63 0.58];
+gamma_tilde_D = [0.15 0.152 0.147];
+gamma_tilde_V = [10.^-3 10.^-3 10.^-3];
 
-sigma_tilde_S = [0.032.*0.5 0.032.*0.51 0.034.*0.503];
-sigma_tilde_D = [0.07.*0.21 0.09.*0.172 0.091.*0.165];
-sigma_tilde_V = 10.^(-5).*gamma_tilde_V;
+sigma_tilde_S = [0.032.*0.5 0.032.*0.53 0.034.*0.51];
+sigma_tilde_D = [0.07.*0.12 0.09.*0.122 0.091.*0.125];
+sigma_tilde_V = 10.^(-4).*gamma_tilde_V;
 
 pd = 7.2.*10.^-8;   
-qZ = 0.99;  
-qX = 0.01;  
+qZ = 0.5;  
+qX = 0.5;  
 alpha = 0.2;    
 eta_det = 0.65; 
 
@@ -222,29 +223,29 @@ function [EZkk_bar, EXkk_bar] = caculate_Ekk_bar(qZ, qX, pk, ek_B)
 end
 
 %%
-function [nu_opt, fval, exitflag] = linprog_sigma_y1h1(qZ, pk, pn, Dk_B, n, c_plus, c_minus, m_plus, m_minus)   
+function [nu_opt, fval, exitflag] = linprog_sigma_y1h1(qZ, pk, pn, Dk_B, n, c_plus, c_minus, m_plus, m_minus)
     % 总变量数量
-    total_vars = 3*3*length(n);    
-
-    % 计算各约束数量
-    num_constr1 = 3*3;  % 约束1的数量
-    num_constr2 = 3*3;  % 约束2的数量
-    num_constr3 = 3*3*2*length(n);  % 约束3的数量 (2因为bb≠a)
-    num_constr4 = 3*3*2*length(n);  % 约束4的数量
-    num_constr5 = 3*3*(length(n)-1);    %单调性约束
-    total_constr = num_constr1 + num_constr2 + num_constr3 + num_constr4 + num_constr5;
-
-    % 目标函数构建 
+    total_vars = 3*3*length(n);
+    
+    % 创建Gurobi模型
+    model = struct();
+    
+    % 目标函数构建
     f = zeros(total_vars, 1);
     for c = 1:3
         pos = pos_convert(1, c, 1+1, length(n));  % n=1的位置
-        f(pos) = qZ^2 * pk(1) * pk(c) * pn(1,c,2); 
+        f(pos) = qZ^2 * pk(1) * pk(c) * pn(1,c,2);
     end
+    model.obj = f;
     
-    A = zeros(total_constr, total_vars);
-    b = zeros(total_constr, 1);
-    constr_idx = 1;
-
+    % 变量边界
+    model.lb = zeros(total_vars, 1);
+    model.ub = ones(total_vars, 1);
+    
+    % 约束矩阵和右端项初始化
+    A = sparse(0, total_vars);
+    b = [];
+    
     % 约束1: Dk_B约束
     for a = 1:3
         for c = 1:3
@@ -252,14 +253,13 @@ function [nu_opt, fval, exitflag] = linprog_sigma_y1h1(qZ, pk, pn, Dk_B, n, c_pl
             for i = 1:length(n)
                 pos = pos_convert(a,c,i, length(n));
                 row(pos) = pn(a,c,i);
-            end           
-            A(constr_idx,:) = row;
-            b(constr_idx) = Dk_B(a,c);
-            constr_idx = constr_idx + 1;
+            end
+            A = [A; sparse(row)];
+            b = [b; Dk_B(a,c)];
         end
     end
     
-    % 约束2: 1-Dk_B约束 
+    % 约束2: 1-Dk_B约束
     for a = 1:3
         for c = 1:3
             row = zeros(1, total_vars);
@@ -268,9 +268,8 @@ function [nu_opt, fval, exitflag] = linprog_sigma_y1h1(qZ, pk, pn, Dk_B, n, c_pl
                 pos = pos_convert(a,c,i, length(n));
                 row(pos) = -pn(a,c,i);
             end
-            A(constr_idx,:) = row;
-            b(constr_idx) = 1 - pn_sum - Dk_B(a,c);
-            constr_idx = constr_idx + 1;
+            A = [A; sparse(row)];
+            b = [b; 1 - pn_sum - Dk_B(a,c)];
         end
     end
     
@@ -285,15 +284,14 @@ function [nu_opt, fval, exitflag] = linprog_sigma_y1h1(qZ, pk, pn, Dk_B, n, c_pl
                     pos_bb = pos_convert(bb,c,i, length(n));
                     row(pos_a) = -m_plus(a,bb,c,i);
                     row(pos_bb) = 1;
-                    A(constr_idx,:) = row;
-                    b(constr_idx) = c_plus(a,bb,c,i);
-                    constr_idx = constr_idx + 1;
+                    A = [A; sparse(row)];
+                    b = [b; c_plus(a,bb,c,i)];
                 end
             end
         end
     end
     
-    % 约束4: m_minus约束 
+    % 约束4: m_minus约束
     for a = 1:3
         for c = 1:3
             for bb = 1:3
@@ -304,9 +302,8 @@ function [nu_opt, fval, exitflag] = linprog_sigma_y1h1(qZ, pk, pn, Dk_B, n, c_pl
                     pos_bb = pos_convert(bb,c,i, length(n));
                     row(pos_a) = m_minus(a,bb,c,i);
                     row(pos_bb) = -1;
-                    A(constr_idx,:) = row;
-                    b(constr_idx) = -c_minus(a,bb,c,i);
-                    constr_idx = constr_idx + 1;
+                    A = [A; sparse(row)];
+                    b = [b; -c_minus(a,bb,c,i)];
                 end
             end
         end
@@ -316,52 +313,72 @@ function [nu_opt, fval, exitflag] = linprog_sigma_y1h1(qZ, pk, pn, Dk_B, n, c_pl
     for a = 1:3
         for c = 1:3
             for i = 1:length(n)-1
-                    row = zeros(1, total_vars);
-                    pos_k = pos_convert(a,c,i, length(n));
-                    pos_kplus = pos_convert(a,c,i+1, length(n));
-                    row(pos_k) = 1;
-                    row(pos_kplus) = -1;
-                    A(constr_idx,:) = row;
-                    b(constr_idx) = 0;
-                    constr_idx = constr_idx + 1;
+                row = zeros(1, total_vars);
+                pos_k = pos_convert(a,c,i, length(n));
+                pos_kplus = pos_convert(a,c,i+1, length(n));
+                row(pos_k) = 1;
+                row(pos_kplus) = -1;
+                A = [A; sparse(row)];
+                b = [b; 0];
             end
         end
     end
     
-    % 高精度求解选项
-    options = optimoptions('linprog', ...
-        'Algorithm', 'dual-simplex', ...  % 保持对偶单纯形法
-        'ConstraintTolerance', 1e-9, ...  % 约束容差
-        'OptimalityTolerance', 1e-10, ...  % 最优性容差
-        'MaxIterations', 100000, ...      % 最大迭代次数提高到10万次
-        'Display', 'final');               % 显示迭代过程便于调试
+    % 设置约束矩阵和右端项
+    model.A = sparse(A);
+    model.rhs = b;
+    
+    % 设置约束类型（全部为不等式约束 <=）
+    model.sense = repmat('<', size(b));
+    
+    % 求解参数设置
+    params.outputflag = 1;  % 显示求解过程
+    params.method = 1;      % 使用对偶单纯形法
+    params.optimalitytol = 1e-9;  % 最优性容差
+    params.feastol = 1e-9;         % 可行性容差
+    params.iterlimit = 100000;     % 最大迭代次数
     
     % 求解线性规划
-    [nu_opt, fval, exitflag] = linprog(f, A, b, [], [], zeros(total_vars,1), ones(total_vars,1), options);
+    result = gurobi(model, params);
+    
+    % 提取结果
+    if isfield(result, 'x')
+        nu_opt = result.x;
+        fval = result.objval;
+        if strcmp(result.status, 'OPTIMAL')
+            exitflag = 1;
+        else
+            exitflag = 0;
+        end
+    else
+        nu_opt = [];
+        fval = Inf;
+        exitflag = -1;
+    end
 end
 
 function [nu_opt, fval, exitflag] = linprog_sigma_h1h1(qX, pk, pn, ek_B, n, t_plus, t_minus, s_plus, s_minus)
     % 总变量数量
-    total_vars = 3*3*length(n);    
+    total_vars = 3*3*length(n);
     
-    % 计算各约束数量
-    num_constr1 = 3*3;  % 约束1的数量
-    num_constr2 = 3*3;  % 约束2的数量
-    num_constr3 = 3*3*2*length(n); % 约束3的数量 (2因为bb≠a)
-    num_constr4 = 3*3*2*length(n); % 约束4的数量 (2因为bb≠a)
-    num_constr5 = 3*3*(length(n)-1);    %单调性约束
-    total_constr = num_constr1 + num_constr2 + num_constr3 + num_constr4 + num_constr5;
-
-    % 目标函数构建 
-    f = zeros(3*3*length(n), 1);
+    % 创建Gurobi模型
+    model = struct();
+    
+    % 目标函数构建
+    f = zeros(total_vars, 1);
     for c = 1:3
         pos = pos_convert(1,c,1+1,length(n));  % n=1的位置
-        f(pos) = qX^2 * pk(1) * pk(c) * pn(1,c,1+1); 
+        f(pos) = qX^2 * pk(1) * pk(c) * pn(1,c,1+1);
     end
+    model.obj = -f;  % 注意：原代码中是求最大化，所以取负
     
-    A = zeros(total_constr, total_vars);
-    b = zeros(total_constr, 1);
-    constr_idx = 1;
+    % 变量边界
+    model.lb = zeros(total_vars, 1);
+    model.ub = ones(total_vars, 1);
+    
+    % 约束矩阵和右端项初始化
+    A = sparse(0, total_vars);
+    b = [];
     
     % 约束1: ek_B约束
     for a = 1:3
@@ -371,9 +388,8 @@ function [nu_opt, fval, exitflag] = linprog_sigma_h1h1(qX, pk, pn, ek_B, n, t_pl
                 pos = pos_convert(a,c,i,length(n));
                 row(pos) = pn(a,c,i);
             end
-            A(constr_idx,:) = row;
-            b(constr_idx) = ek_B(a,c);
-            constr_idx = constr_idx + 1;
+            A = [A; sparse(row)];
+            b = [b; ek_B(a,c)];
         end
     end
     
@@ -381,14 +397,13 @@ function [nu_opt, fval, exitflag] = linprog_sigma_h1h1(qX, pk, pn, ek_B, n, t_pl
     for a = 1:3
         for c = 1:3
             row = zeros(1, total_vars);
-            pn_sum = sum(pn(a,c,:)); 
+            pn_sum = sum(pn(a,c,:));
             for i = 1:length(n)
                 pos = pos_convert(a,c,i,length(n));
                 row(pos) = -pn(a,c,i);
-            end 
-            A(constr_idx,:) = row;
-            b(constr_idx) = 1 - pn_sum - ek_B(a,c);
-            constr_idx = constr_idx + 1;
+            end
+            A = [A; sparse(row)];
+            b = [b; 1 - pn_sum - ek_B(a,c)];
         end
     end
     
@@ -400,12 +415,11 @@ function [nu_opt, fval, exitflag] = linprog_sigma_h1h1(qX, pk, pn, ek_B, n, t_pl
                 for i = 1:length(n)
                     row = zeros(1, total_vars);
                     pos_a = pos_convert(a,c,i,length(n));
-                    pos_bb = pos_convert(bb,c,i,length(n));             
+                    pos_bb = pos_convert(bb,c,i,length(n));
                     row(pos_a) = -s_plus(a,bb,c,i);
-                    row(pos_bb) = 1;                   
-                    A(constr_idx,:) = row;
-                    b(constr_idx) = t_plus(a,bb,c,i);
-                    constr_idx = constr_idx + 1;
+                    row(pos_bb) = 1;
+                    A = [A; sparse(row)];
+                    b = [b; t_plus(a,bb,c,i)];
                 end
             end
         end
@@ -419,12 +433,11 @@ function [nu_opt, fval, exitflag] = linprog_sigma_h1h1(qX, pk, pn, ek_B, n, t_pl
                 for i = 1:length(n)
                     row = zeros(1, total_vars);
                     pos_a = pos_convert(a,c,i,length(n));
-                    pos_bb = pos_convert(bb,c,i,length(n));                     
+                    pos_bb = pos_convert(bb,c,i,length(n));
                     row(pos_a) = s_minus(a,bb,c,i);
-                    row(pos_bb) = -1;                   
-                    A(constr_idx,:) = row;
-                    b(constr_idx) = -t_minus(a,bb,c,i);
-                    constr_idx = constr_idx + 1;
+                    row(pos_bb) = -1;
+                    A = [A; sparse(row)];
+                    b = [b; -t_minus(a,bb,c,i)];
                 end
             end
         end
@@ -434,29 +447,48 @@ function [nu_opt, fval, exitflag] = linprog_sigma_h1h1(qX, pk, pn, ek_B, n, t_pl
     for a = 1:3
         for c = 1:3
             for i = 1:length(n)-1
-                    row = zeros(1, total_vars);
-                    pos_k = pos_convert(a,c,i, length(n));
-                    pos_kplus = pos_convert(a,c,i+1, length(n));
-                    row(pos_k) = 1;
-                    row(pos_kplus) = -1;
-                    A(constr_idx,:) = row;
-                    b(constr_idx) = 0;
-                    constr_idx = constr_idx + 1;
+                row = zeros(1, total_vars);
+                pos_k = pos_convert(a,c,i, length(n));
+                pos_kplus = pos_convert(a,c,i+1, length(n));
+                row(pos_k) = 1;
+                row(pos_kplus) = -1;
+                A = [A; sparse(row)];
+                b = [b; 0];
             end
         end
     end
     
-    % 高精度求解选项
-    options = optimoptions('linprog', ...
-        'Algorithm', 'dual-simplex', ...  % 保持对偶单纯形法
-        'ConstraintTolerance', 1e-9, ...  % 约束容差
-        'OptimalityTolerance', 1e-10, ...  % 最优性容差
-        'MaxIterations', 100000, ...      % 最大迭代次数
-        'Display', 'off');              
+    % 设置约束矩阵和右端项
+    model.A = sparse(A);
+    model.rhs = b;
+    
+    % 设置约束类型（全部为不等式约束 <=）
+    model.sense = repmat('<', size(b));
+    
+    % 求解参数设置
+    params.outputflag = 0;  % 不显示求解过程
+    params.method = 1;      % 使用对偶单纯形法
+    params.optimalitytol = 1e-9;  % 最优性容差
+    params.feastol = 1e-9;         % 可行性容差
+    params.iterlimit = 100000;     % 最大迭代次数
     
     % 求解线性规划
-    [nu_opt, fval, exitflag] = linprog(-f, A, b, [], [], zeros(total_vars,1), ones(total_vars,1),  options);
-    fval = -fval;
+    result = gurobi(model, params);
+    
+    % 提取结果
+    if isfield(result, 'x')
+        nu_opt = result.x;
+        fval = -result.objval;  % 恢复原始目标函数值
+        if strcmp(result.status, 'OPTIMAL')
+            exitflag = 1;
+        else
+            exitflag = 0;
+        end
+    else
+        nu_opt = [];
+        fval = -Inf;
+        exitflag = -1;
+    end
 end
 
 %%
