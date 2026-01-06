@@ -1,12 +1,32 @@
-%% user set
-filename = 'SDV-8192random30s1.csv';
+% 设定文件前缀
+prefix = 'SDV-8192random30s';
+suffix = '.csv';
+
+% 其他参数
 bin_width = 16; % [ps]
 freq = 1.25 *10^9;  % [Hz]
 count_resol = 25;  % count resolution
-arrange_list = char("SDSVVDVSDDDSSSSVVSDS");
-order = 3; % 阶数（0: 单态, 1: 一阶, 2: 二阶, ...）
-analyze_pulse_patterns(filename, bin_width, freq, count_resol, arrange_list, order);
+order = 2; % 阶数（0: 单态, 1: 一阶, 2: 二阶, ...）
+arrange_list = char("DSDDSSSVSSSSSSVVSDSSDVSVSD");
 
+% 获取当前目录下所有符合的文件
+files = dir([prefix, '*', suffix]);
+
+% 依次处理每个文件
+for k = 1:length(files)
+    filename = files(k).name;
+    disp(['处理文件: ', filename]);
+    try
+        analyze_pulse_patterns(filename, bin_width, freq, count_resol, arrange_list, order);
+    catch ME
+        warning(['处理失败: ', filename, ', 错误信息: ', ME.message]);
+    end
+end
+
+disp('批量处理完成。');
+
+
+%% 
 function analyze_pulse_patterns(filename, bin_width, freq, count_resol, arrange_list, order)
     % 分析脉冲模式并生成统计结果
     % 输入参数:
@@ -35,16 +55,9 @@ function analyze_pulse_patterns(filename, bin_width, freq, count_resol, arrange_
     end
 
     log_pulse = log10(pulse);
-    figure(1);
-    [y, x] = hist(log_pulse, count_resol);   % y：每个柱子中包含的数据点数量（频数） x：每个柱子的中心位置坐标
-    bar(x, y);
-    xlabel('counts/log', 'FontName', 'Times New Roman', 'fontsize', 18);
-    ylabel('probability', 'FontName', 'Times New Roman', 'fontsize', 18);
-    title('Histogram');
+    [y,x] = hist(log_pulse,count_resol);
     nonzero_index = find(y); % find 函数用于查找数组中非零元素的索引
-
     arrset = find_continuous_sequences(nonzero_index);
-
     if (numel(arrset) ~= 3)
         disp('请调整分辨率');
         return;
@@ -143,11 +156,11 @@ function analyze_pulse_patterns(filename, bin_width, freq, count_resol, arrange_
         end
     end
 
-    % 对S结尾的模式按字典顺序排序
-    s_patterns = sort(s_patterns);
+    % 对S结尾的模式按SDV顺序排序
+    s_patterns = sort_patterns_by_sdv(s_patterns);
 
-    % 对D结尾的模式按字典顺序排序
-    d_patterns = sort(d_patterns);
+    % 对D结尾的模式按SDV顺序排序  
+    d_patterns = sort_patterns_by_sdv(d_patterns);
 
     % 合并：先放所有S结尾的，再放所有D结尾的
     idx = 1;
@@ -329,71 +342,8 @@ function analyze_pulse_patterns(filename, bin_width, freq, count_resol, arrange_
         error('写入Excel失败: %s\n请确保文件没有被其他程序打开。', ME.message);
     end
 
-    disp('===== 关键统计结果 =====');
-    fprintf('阶数: %d\n', order);
-    fprintf('总模式数: %d\n', pattern_count);
-    fprintf('有效模式数: %d\n', sum(valid_patterns));
-
-    % 显示基准模式
-    fprintf('\n基准模式:\n');
-    if valid_patterns(s_baseline_idx)
-        fprintf('S结尾模式基准: %s (均值=%.2f)\n', all_s_pattern, s_baseline_mean);
-    else
-        fprintf('S结尾模式基准: %s (未检测到数据)\n', all_s_pattern);
-    end
-
-    if valid_patterns(d_baseline_idx)
-        fprintf('D结尾模式基准: %s (均值=%.2f)\n', all_d_pattern, d_baseline_mean);
-    else
-        fprintf('D结尾模式基准: %s (未检测到数据)\n', all_d_pattern);
-    end
-
-    % 显示模式的统计信息（分两组显示）
-    fprintf('\nS结尾模式统计:\n');
-    for p = 1:pattern_count
-        if valid_patterns(p) && pattern_names{p}(end) == 'S'
-            if strcmp(pattern_names{p}, all_s_pattern)
-                fprintf('%s: 均值=%.2f (基准), 归一化=1.000\n', ...
-                        pattern_names{p}, means(p));
-            else
-                fprintf('%s: 均值=%.2f, 归一化=%.3f, 偏差=%.3f%%, 计数=%d\n', ...
-                        pattern_names{p}, means(p), norm_means(p), deviations(p), length(pattern_counts{p}));
-            end
-        end
-    end
-
-    fprintf('\nD结尾模式统计:\n');
-    for p = 1:pattern_count
-        if valid_patterns(p) && pattern_names{p}(end) == 'D'
-            if strcmp(pattern_names{p}, all_d_pattern)
-                fprintf('%s: 均值=%.2f (基准), 归一化=1.000\n', ...
-                        pattern_names{p}, means(p));
-            else
-                fprintf('%s: 均值=%.2f, 归一化=%.3f, 偏差=%.3f%%, 计数=%d\n', ...
-                        pattern_names{p}, means(p), norm_means(p), deviations(p), length(pattern_counts{p}));
-            end
-        end
-    end
-
     fprintf('\n结果已写入文件: %s\n', output_filename);
 
-    %%  plot and label state    
-    figure(2);
-    time = time(index_first - period / bin_width / 2:index_last - period / bin_width / 2);
-    data = data(index_first - period / bin_width / 2:index_last - period / bin_width / 2);
-    H = semilogy(time, data);
-    grid on;
-    xmin = time((arrange_list_order - 1) * period / bin_width);
-    xmax = time((arrange_list_order - 1 + length(arrange_list)) * period / bin_width);
-    xlim([xmin, xmax]);
-    xlabel('time/ps', 'FontName', 'Times New Roman', 'fontsize', 18);
-    ylabel('counts/log', 'FontName', 'Times New Roman', 'fontsize', 18);
-    title(['SDV - Order ' num2str(order)]);
-    xpos = xmin + period / 2:period:xmax - period / 2;
-    ypos = 8000;
-    for i = 1:length(xpos)
-        text(xpos(i), ypos, arrange_list(i));
-    end
 end
 
 %% 连续数字序列查找函数
@@ -431,4 +381,30 @@ function combinations = generate_combinations(elements, n)
         end
     end
     combinations = combinations(:);
+end
+
+%% 排序函数
+function sorted_patterns = sort_patterns_by_sdv(patterns)
+    % 将SDV映射为数字：S=1, D=2, V=3
+    pattern_chars = char(patterns);
+    
+    % 创建一个数值矩阵用于排序
+    num_patterns = zeros(length(patterns), size(pattern_chars, 2));
+    
+    for i = 1:length(patterns)
+        for j = 1:size(pattern_chars, 2)
+            switch pattern_chars(i, j)
+                case 'S'
+                    num_patterns(i, j) = 1;
+                case 'D'
+                    num_patterns(i, j) = 2;
+                case 'V'
+                    num_patterns(i, j) = 3;
+            end
+        end
+    end
+    
+    % 使用sortrows按数值矩阵排序
+    [~, idx] = sortrows(num_patterns);
+    sorted_patterns = patterns(idx);
 end
