@@ -1,10 +1,11 @@
 %% user set
-filename = 'SDV-8192random30s1.csv';
+% 文件在上层目录
+filename = '../SDV-8192random30s1.csv';
 bin_width = 16; % [ps]
 freq = 1.25 *10^9;  % [Hz]
 count_resol = 25;  % count resolution
 arrange_list = char("SDSVVDVSDDDSSSSVVSDS");
-order = 3; % 阶数（0: 单态, 1: 一阶, 2: 二阶, ...）
+order = 0; % 阶数（0: 单态, 1: 一阶, 2: 二阶, ...）
 analyze_pulse_patterns(filename, bin_width, freq, count_resol, arrange_list, order);
 
 function analyze_pulse_patterns(filename, bin_width, freq, count_resol, arrange_list, order)
@@ -111,54 +112,59 @@ function analyze_pulse_patterns(filename, bin_width, freq, count_resol, arrange_
 
     %% 生成所有可能的模式组合并按正确顺序排序
     state_types = {'S', 'D', 'V'};
-    pattern_count = 3^order * 2; % 前order位可以是任意状态，最后一位只能是S或D
 
-    % 首先生成所有前order位的组合
-    all_prefixes = generate_combinations(state_types, order);
+    if order == 0
+        % order=0的特殊处理：只有单态S和D
+        pattern_count = 2;
+        pattern_names = {'S', 'D'};
+    else
+        pattern_count = 3^order * 2; % 前order位可以是任意状态，最后一位只能是S或D
 
-    % 生成所有模式
-    all_patterns = {};
-    for p = 1:length(all_prefixes)
-        prefix = all_prefixes{p};
-        % 添加以S结尾的模式
-        all_patterns{end + 1} = [prefix 'S'];
-        % 添加以D结尾的模式
-        all_patterns{end + 1} = [prefix 'D'];
-    end
+        % 首先生成所有前order位的组合
+        all_prefixes = generate_combinations(state_types, order);
 
-    % 按照特殊规则排序：
-    % 1. 首先按最后一位分组（S结尾的在前，D结尾的在后）
-    % 2. 在每个分组内，按前缀的字典顺序排序
-    pattern_names = cell(1, pattern_count);
-    s_patterns = {}; % S结尾的模式
-    d_patterns = {}; % D结尾的模式
-
-    % 分离S结尾和D结尾的模式
-    for p = 1:length(all_patterns)
-        pattern = all_patterns{p};
-        if pattern(end) == 'S'
-            s_patterns{end + 1} = pattern;
-        else
-            d_patterns{end + 1} = pattern;
+        % 生成所有模式
+        all_patterns = {};
+        for p = 1:length(all_prefixes)
+            prefix = all_prefixes{p};
+            % 添加以S结尾的模式
+            all_patterns{end + 1} = [prefix 'S'];
+            % 添加以D结尾的模式
+            all_patterns{end + 1} = [prefix 'D'];
         end
-    end
 
-    % 对S结尾的模式按SDV顺序排序
-    s_patterns = sort_patterns_by_sdv(s_patterns);
+        % 按照特殊规则排序
+        s_patterns = {}; % S结尾的模式
+        d_patterns = {}; % D结尾的模式
 
-    % 对D结尾的模式按SDV顺序排序  
-    d_patterns = sort_patterns_by_sdv(d_patterns);
+        % 分离S结尾和D结尾的模式
+        for p = 1:length(all_patterns)
+            pattern = all_patterns{p};
+            if pattern(end) == 'S'
+                s_patterns{end + 1} = pattern;
+            else
+                d_patterns{end + 1} = pattern;
+            end
+        end
 
-    % 合并：先放所有S结尾的，再放所有D结尾的
-    idx = 1;
-    for p = 1:length(s_patterns)
-        pattern_names{idx} = s_patterns{p};
-        idx = idx + 1;
-    end
+        % 对S结尾的模式按SDV顺序排序
+        s_patterns = sort_patterns_by_sdv(s_patterns);
 
-    for p = 1:length(d_patterns)
-        pattern_names{idx} = d_patterns{p};
-        idx = idx + 1;
+        % 对D结尾的模式按SDV顺序排序  
+        d_patterns = sort_patterns_by_sdv(d_patterns);
+
+        % 合并
+        pattern_names = cell(1, pattern_count);
+        idx = 1;
+        for p = 1:length(s_patterns)
+            pattern_names{idx} = s_patterns{p};
+            idx = idx + 1;
+        end
+
+        for p = 1:length(d_patterns)
+            pattern_names{idx} = d_patterns{p};
+            idx = idx + 1;
+        end
     end
 
     fprintf('阶数: %d, 模式数量: %d\n', order, pattern_count);
@@ -316,7 +322,9 @@ function analyze_pulse_patterns(filename, bin_width, freq, count_resol, arrange_
     end
 
     % 写入Excel文件
-    output_filename = strrep(filename, '.csv', sprintf('_result_order%d.xlsx', order));
+    [~, name_only, ext] = fileparts(filename);
+    % 如果是上层目录的文件，name_ext包含扩展名
+    output_filename = [name_only sprintf('_result_order%d.xlsx', order)];
 
     % 将标题和数据合并
     all_data = [headers; output_data];
@@ -419,7 +427,9 @@ end
 
 %% 生成所有组合函数（递归）
 function combinations = generate_combinations(elements, n)
-    if n == 1
+    if n == 0
+        combinations = {''};  % 空字符串表示没有前缀
+    elseif n == 1
         combinations = elements;
     else
         sub_combinations = generate_combinations(elements, n - 1);
