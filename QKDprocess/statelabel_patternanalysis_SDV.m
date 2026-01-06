@@ -1,9 +1,10 @@
 %% user set
-filename = 'SDV-IQ0627.csv';
+filename = 'SDV-8192random30s1.csv';
 bin_width = 16; % [ps]
 freq = 1.25 *10^9;  % [Hz]
 count_resol = 25;  % count resolution
-arrange_list = char("VVSSDSSVSV");
+arrange_list = char("SDSVVDVSDDDSSSSVVSDS");
+order = 3; % 阶数（0: 单态, 1: 一阶, 2: 二阶, ...）
 
 %% find states of the pulses 
 period = 1 /freq *10^12;    % [ps]
@@ -91,27 +92,78 @@ for i = 1:6
     end
 end
 
-%% 将pulse序列归类并写入Excel，计算完整统计量并格式化输出
-% 使用上一步找到的dic{i}和起始位置arrange_list_order
+%% 生成所有可能的模式组合并按正确顺序排序
+state_types = {'S', 'D', 'V'};
+pattern_count = 3^order * 2; % 前order位可以是任意状态，最后一位只能是S或D
 
+% 首先生成所有前order位的组合
+all_prefixes = generate_combinations(state_types, order);
+
+% 生成所有模式
+all_patterns = {};
+for p = 1:length(all_prefixes)
+    prefix = all_prefixes{p};
+    % 添加以S结尾的模式
+    all_patterns{end+1} = [prefix 'S'];
+    % 添加以D结尾的模式
+    all_patterns{end+1} = [prefix 'D'];
+end
+
+% 按照特殊规则排序：
+% 1. 首先按最后一位分组（S结尾的在前，D结尾的在后）
+% 2. 在每个分组内，按前缀的字典顺序排序
+pattern_names = cell(1, pattern_count);
+s_patterns = {}; % S结尾的模式
+d_patterns = {}; % D结尾的模式
+
+% 分离S结尾和D结尾的模式
+for p = 1:length(all_patterns)
+    pattern = all_patterns{p};
+    if pattern(end) == 'S'
+        s_patterns{end+1} = pattern;
+    else
+        d_patterns{end+1} = pattern;
+    end
+end
+
+% 对S结尾的模式按字典顺序排序
+s_patterns = sort(s_patterns);
+
+% 对D结尾的模式按字典顺序排序
+d_patterns = sort(d_patterns);
+
+% 合并：先放所有S结尾的，再放所有D结尾的
+idx = 1;
+for p = 1:length(s_patterns)
+    pattern_names{idx} = s_patterns{p};
+    idx = idx + 1;
+end
+
+for p = 1:length(d_patterns)
+    pattern_names{idx} = d_patterns{p};
+    idx = idx + 1;
+end
+
+fprintf('阶数: %d, 模式数量: %d\n', order, pattern_count);
+
+%% 将pulse序列归类并写入Excel，计算完整统计量
 % 创建输出矩阵（增加统计行）
-output_data = cell(length(code_pulse)+6, 9); % 增加6行用于统计结果
+output_data = cell(length(code_pulse)+5, 3+pattern_count);
 
 % 列标题
-headers = {'Pulse Number', 'Pulse Counts', 'Pulse Type', 'SS', 'DS', 'VS', 'SD', 'DD', 'VD'};
+headers = {'Pulse Number', 'Pulse Counts', 'Pulse Type'};
+for j = 1:pattern_count
+    headers{end+1} = pattern_names{j};
+end
 
 % 使用找到的dic{i}进行归类
-current_dic = eval(['dic' num2str(i)]); % 获取正确的字典
+current_dic = eval(['dic' num2str(i)]);
 
 % 填充前三列数据
 for pulse_idx = 1:length(code_pulse)
-    % 第一列：脉冲序号
     output_data{pulse_idx, 1} = pulse_idx;
-    
-    % 第二列：脉冲计数值
     output_data{pulse_idx, 2} = pulse(pulse_idx);
     
-    % 第三列：脉冲类型
     current_code = code_pulse(pulse_idx);
     if current_code == current_dic.S
         output_data{pulse_idx, 3} = 'S';
@@ -124,168 +176,200 @@ for pulse_idx = 1:length(code_pulse)
     end
 end
 
-% 初始化模式检测标志和数据收集
-pattern_detected = false(length(code_pulse), 6);
-pattern_counts = cell(6, 1);
-pattern_names = {'SS', 'DS', 'VS', 'SD', 'DD', 'VD'};
+% 初始化数据收集
+pattern_counts = cell(pattern_count, 1);
 
 % 检测模式并收集数据
-for pulse_idx = 1:length(code_pulse)-1
-    current_type = output_data{pulse_idx, 3};
-    next_type = output_data{pulse_idx+1, 3};
-    next_count = output_data{pulse_idx+1, 2};
+for pulse_idx = 1:length(code_pulse)-order
+    % 获取当前窗口的状态序列
+    window_states = cell(1, order+1);
+    window_codes = zeros(1, order+1);
     
-    for p = 1:6
-        first_char = pattern_names{p}(1);
-        second_char = pattern_names{p}(2);
+    for k = 0:order
+        state_code = code_pulse(pulse_idx+k);
+        window_codes(k+1) = state_code;
+        if state_code == current_dic.S
+            window_states{k+1} = 'S';
+        elseif state_code == current_dic.D
+            window_states{k+1} = 'D';
+        elseif state_code == current_dic.V
+            window_states{k+1} = 'V';
+        end
+    end
+    
+    % 检查窗口是否包含有效状态
+    if all(window_codes > 0)
+        % 生成模式名称
+        pattern_name = '';
+        for k = 1:order+1
+            pattern_name = [pattern_name window_states{k}];
+        end
         
-        if strcmp(current_type, first_char) && strcmp(next_type, second_char)
-            pattern_detected(pulse_idx+1, p) = true;
-            pattern_counts{p} = [pattern_counts{p}; next_count];
-            output_data{pulse_idx+1, p+3} = next_count;
+        % 查找模式在列表中的位置
+        pattern_idx = find(strcmp(pattern_names, pattern_name));
+        
+        if ~isempty(pattern_idx)
+            last_count = pulse(pulse_idx+order);
+            pattern_counts{pattern_idx} = [pattern_counts{pattern_idx}; last_count];
+            output_data{pulse_idx+order, pattern_idx+3} = last_count;
         end
     end
 end
 
-% 计算统计量 ====================================================
+% 计算统计量
 stats_row = length(code_pulse)+1;
 
-% 计算基本统计量
-means = zeros(1,6);
-stds = zeros(1,6);
+% 初始化统计数组
+means = zeros(1,pattern_count);
+stds = zeros(1,pattern_count);
 valid_patterns = ~cellfun(@isempty, pattern_counts);
 
-for p = 1:6
+% 计算基本统计量
+for p = 1:pattern_count
     if valid_patterns(p)
         means(p) = mean(pattern_counts{p});
         stds(p) = std(pattern_counts{p});
     end
 end
 
-% 归一化因子
-ss_mean = means(1);
-sd_mean = means(4);
+% 计算每个模式的归一化因子和偏差
+norm_means = zeros(1, pattern_count);
+norm_stds = zeros(1, pattern_count);
+deviations = zeros(1, pattern_count);
 
-% 计算归一化值和偏差百分比
-norm_means = means / ss_mean;
-norm_stds = stds / ss_mean;
-
-% DS和VS相对于SS的偏差百分比
-if valid_patterns(2)
-    ds_deviation = (means(2)-ss_mean)/ss_mean*100;
-else
-    ds_deviation = NaN;
+% 查找基准模式
+all_s_pattern = '';  % 全S模式，用于S结尾的模式
+all_d_pattern = '';  % 全D模式，用于D结尾的模式
+for k = 1:order+1
+    all_s_pattern = [all_s_pattern 'S'];
+    all_d_pattern = [all_d_pattern 'D'];
 end
 
-if valid_patterns(3)
-    vs_deviation = (means(3)-ss_mean)/ss_mean*100;
-else
-    vs_deviation = NaN;
+s_baseline_idx = find(strcmp(pattern_names, all_s_pattern));
+d_baseline_idx = find(strcmp(pattern_names, all_d_pattern));
+
+% 查找基准模式
+all_s_pattern = '';  % 全S模式，用于S结尾的模式
+all_d_pattern = '';  % 全D模式，用于D结尾的模式
+for k = 1:order+1
+    all_s_pattern = [all_s_pattern 'S'];
+    all_d_pattern = [all_d_pattern 'D'];
 end
 
-% DD和VD相对于SD的偏差百分比
-if valid_patterns(5) && valid_patterns(4)
-    dd_deviation = (means(5)-sd_mean)/sd_mean*100;
+s_baseline_idx = find(strcmp(pattern_names, all_s_pattern));
+d_baseline_idx = find(strcmp(pattern_names, all_d_pattern));
+
+% 修正：使用if-else语句
+if ~isempty(s_baseline_idx) && valid_patterns(s_baseline_idx)
+    s_baseline_mean = means(s_baseline_idx);
 else
-    dd_deviation = NaN;
+    s_baseline_mean = 1;
 end
 
-if valid_patterns(6) && valid_patterns(4)
-    vd_deviation = (means(6)-sd_mean)/sd_mean*100;
+if ~isempty(d_baseline_idx) && valid_patterns(d_baseline_idx)
+    d_baseline_mean = means(d_baseline_idx);
 else
-    vd_deviation = NaN;
+    d_baseline_mean = 1;
 end
 
-% 填充统计行 ===================================================
-% 平均值行
+for p = 1:pattern_count
+    if valid_patterns(p)
+        pattern_name = pattern_names{p};
+        
+        % 根据最后一位选择基准
+        if pattern_name(end) == 'S'
+            baseline_mean = s_baseline_mean;
+            baseline_name = all_s_pattern;
+        else % pattern_name(end) == 'D'
+            baseline_mean = d_baseline_mean;
+            baseline_name = all_d_pattern;
+        end
+        
+        % 计算归一化值和偏差
+        norm_means(p) = means(p) / baseline_mean;
+        norm_stds(p) = stds(p) / baseline_mean;
+        deviations(p) = (means(p) - baseline_mean) / baseline_mean * 100;
+    end
+end
+
+% 填充统计行
 output_data{stats_row, 1} = 'Mean (counts)';
-for p = 1:6
+output_data{stats_row+1, 1} = 'Std Dev (counts)';
+output_data{stats_row+2, 1} = 'Normalized Mean';
+output_data{stats_row+3, 1} = 'Normalized Std Dev';
+output_data{stats_row+4, 1} = 'Deviation Percentage';
+
+for p = 1:pattern_count
     if valid_patterns(p)
         output_data{stats_row, p+3} = means(p);
-    end
-end
-
-% 标准差行
-output_data{stats_row+1, 1} = 'Std Dev (counts)';
-for p = 1:6
-    if valid_patterns(p)
         output_data{stats_row+1, p+3} = stds(p);
-    end
-end
-
-% 归一化均值行
-output_data{stats_row+2, 1} = 'Normalized Mean (SS=1)';
-for p = 1:6
-    if valid_patterns(p)
         output_data{stats_row+2, p+3} = norm_means(p);
-    end
-end
-
-% 归一化标准差行
-output_data{stats_row+3, 1} = 'Normalized Std Dev (SS=1)';
-for p = 1:6
-    if valid_patterns(p)
         output_data{stats_row+3, p+3} = norm_stds(p);
+        output_data{stats_row+4, p+3} = sprintf('%.3f%%', deviations(p));
     end
 end
 
-% 偏差百分比行
-output_data{stats_row+4, 1} = 'Deviation Percentage';
-if ~isnan(ds_deviation)
-    output_data{stats_row+4, 5} = sprintf('%.3f%% (vs SS)', ds_deviation);
-end
-if ~isnan(vs_deviation)
-    output_data{stats_row+4, 6} = sprintf('%.3f%% (vs SS)', vs_deviation);
-end
-if ~isnan(dd_deviation)
-    output_data{stats_row+4, 8} = sprintf('%.3f%% (vs SD)', dd_deviation);
-end
-if ~isnan(vd_deviation)
-    output_data{stats_row+4, 9} = sprintf('%.3f%% (vs SD)', vd_deviation);
-end
+% 写入Excel文件
+output_filename = strrep(filename, '.csv', sprintf('_result_order%d.xlsx', order));
 
-% 写入Excel文件并设置格式 ======================================
-output_filename = strrep(filename, '.csv', '_result.xlsx')
+% 将标题和数据合并
+all_data = [headers; output_data];
 
-% 先写入数据
-xlswrite(output_filename, headers, 'Sheet1', 'A1:I1');
-xlswrite(output_filename, output_data, 'Sheet1', 'A2');
-
-% 设置Excel格式（需要Excel COM接口）
+% 写入Excel
 try
-    excel = actxserver('Excel.Application');
-    workbook = excel.Workbooks.Open(fullfile(pwd, output_filename));
-    sheet = workbook.Sheets.Item(1);
-    sheet.Columns.AutoFit;
-    
-    % 设置所有数据居中
-    all_range = sheet.Range('A1:I'+string(size(output_data,1)+1));
-    all_range.HorizontalAlignment = 3; % xlCenter
-    
-    % 设置统计行加粗
-    for row = stats_row:stats_row+4
-        sheet.Range('A'+string(row+1)+':I'+string(row+1)).Font.Bold = true;
-        num_range = sheet.Range('A'+string(row+1)+':I'+string(row+1));
-        num_range.NumberFormat = '0.0000';
-    end
-    
-    % 保存并关闭
-    workbook.Save;
-    workbook.Close;
-    excel.Quit;
-    
-catch
-    warning('自动格式设置失败，请手动调整Excel格式');
+    writecell(all_data, output_filename, 'Sheet', 1);
+    fprintf('数据已成功保存到: %s\n', output_filename);
+catch ME
+    error('写入Excel失败: %s\n请确保文件没有被其他程序打开。', ME.message);
 end
 
 disp('===== 关键统计结果 =====');
-disp(['SS均值: ' num2str(ss_mean) ' (归一化基准)']);
-disp(['SD均值: ' num2str(sd_mean)]);
-disp(['DS相对于SS偏差: ' num2str(ds_deviation, '%.3f') '%']);
-disp(['VS相对于SS偏差: ' num2str(vs_deviation, '%.3f') '%']);
-disp(['DD相对于SD偏差: ' num2str(dd_deviation, '%.3f') '%']);
-disp(['VD相对于SD偏差: ' num2str(vd_deviation, '%.3f') '%']);
-disp(['结果已写入文件: ' output_filename]);
+fprintf('阶数: %d\n', order);
+fprintf('总模式数: %d\n', pattern_count);
+fprintf('有效模式数: %d\n', sum(valid_patterns));
+
+% 显示基准模式
+fprintf('\n基准模式:\n');
+if valid_patterns(s_baseline_idx)
+    fprintf('S结尾模式基准: %s (均值=%.2f)\n', all_s_pattern, s_baseline_mean);
+else
+    fprintf('S结尾模式基准: %s (未检测到数据)\n', all_s_pattern);
+end
+
+if valid_patterns(d_baseline_idx)
+    fprintf('D结尾模式基准: %s (均值=%.2f)\n', all_d_pattern, d_baseline_mean);
+else
+    fprintf('D结尾模式基准: %s (未检测到数据)\n', all_d_pattern);
+end
+
+% 显示模式的统计信息（分两组显示）
+fprintf('\nS结尾模式统计:\n');
+for p = 1:pattern_count
+    if valid_patterns(p) && pattern_names{p}(end) == 'S'
+        if strcmp(pattern_names{p}, all_s_pattern)
+            fprintf('%s: 均值=%.2f (基准), 归一化=1.000\n', ...
+                    pattern_names{p}, means(p));
+        else
+            fprintf('%s: 均值=%.2f, 归一化=%.3f, 偏差=%.3f%%, 计数=%d\n', ...
+                    pattern_names{p}, means(p), norm_means(p), deviations(p), length(pattern_counts{p}));
+        end
+    end
+end
+
+fprintf('\nD结尾模式统计:\n');
+for p = 1:pattern_count
+    if valid_patterns(p) && pattern_names{p}(end) == 'D'
+        if strcmp(pattern_names{p}, all_d_pattern)
+            fprintf('%s: 均值=%.2f (基准), 归一化=1.000\n', ...
+                    pattern_names{p}, means(p));
+        else
+            fprintf('%s: 均值=%.2f, 归一化=%.3f, 偏差=%.3f%%, 计数=%d\n', ...
+                    pattern_names{p}, means(p), norm_means(p), deviations(p), length(pattern_counts{p}));
+        end
+    end
+end
+
+fprintf('\n结果已写入文件: %s\n', output_filename);
 
 %%  plot and label state    
 figure(2);
@@ -296,10 +380,9 @@ grid on;
 xmin = time((arrange_list_order-1) *period /bin_width);
 xmax = time((arrange_list_order-1+length(arrange_list)) *period /bin_width);
 xlim([xmin, xmax]);
-% ylim([0,5]);
 xlabel('time/ps','FontName','Times New Roman','fontsize',18);
 ylabel('counts/log','FontName','Times New Roman','fontsize',18);
-title('SDV');
+title(['SDV - Order ' num2str(order)]);
 xpos = xmin+period/2:period:xmax-period/2;
 ypos = 8000;
 for i = 1:length(xpos)
@@ -317,16 +400,28 @@ function arrset = find_continuous_sequences(nonzero_index)
     n = numel(nonzero_index);
     
     while start_idx <= n
-        % 查找当前连续序列的结束位置
         end_idx = start_idx;
         while (end_idx < n) && (nonzero_index(end_idx)+1 == nonzero_index(end_idx+1))
             end_idx = end_idx + 1;
         end
         
-        % 保存当前连续序列
         arrset{end+1} = nonzero_index(start_idx:end_idx);
-        
-        % 移动到下一个序列的起始位置
         start_idx = end_idx + 1;
     end
+end
+
+%% 生成所有组合函数（递归）
+function combinations = generate_combinations(elements, n)
+    if n == 1
+        combinations = elements;
+    else
+        sub_combinations = generate_combinations(elements, n-1);
+        combinations = {};
+        for i = 1:length(elements)
+            for j = 1:length(sub_combinations)
+                combinations{end+1} = [elements{i} sub_combinations{j}];
+            end
+        end
+    end
+    combinations = combinations(:);
 end
