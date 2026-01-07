@@ -51,7 +51,7 @@ function analyze_pulse_patterns(filename, bin_width, freq, count_resol, arrange_
         return;
     end
 
-    resolution = max(log_pulse) / count_resol;
+    resolution = (max(log_pulse)- min(log_pulse)) / count_resol;
     state1_range = [x(arrset{1}(1)) - resolution, x(arrset{1}(end)) + resolution];
     state2_range = [x(arrset{2}(1)) - resolution, x(arrset{2}(end)) + resolution];
     state3_range = [x(arrset{3}(1)) - resolution, x(arrset{3}(end)) + resolution];
