@@ -221,8 +221,6 @@ for order_idx = 1:length(unique_orders)
     
     fprintf('Order %d: Processed %d patterns with total %d pulses\n', ...
             current_order, length(target_columns), sum(stats_table.Count));
-    
-    close(fig);
 end
 
 %% 保存合并数据和汇总信息
