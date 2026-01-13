@@ -1,11 +1,11 @@
 %% user set
 % 文件在上层目录
-filename = '../SDV-8192random30s1.csv';
+filename = '../SDV-8192random40s10.csv';
 bin_width = 16; % [ps]
 freq = 1.25 *10^9;  % [Hz]
 count_resol = 25;  % count resolution
-arrange_list = char("SDSVVDVSDDDSSSSVVSDS");
-order = 0; % 阶数（0: 单态, 1: 一阶, 2: 二阶, ...）
+arrange_list = char("SSSSSVDVSVVDSS");
+order = 1; % 阶数（0: 单态, 1: 一阶, 2: 二阶, ...）
 analyze_pulse_patterns(filename, bin_width, freq, count_resol, arrange_list, order);
 
 function analyze_pulse_patterns(filename, bin_width, freq, count_resol, arrange_list, order)
@@ -23,7 +23,9 @@ function analyze_pulse_patterns(filename, bin_width, freq, count_resol, arrange_
     MINPEAKDISTANCE = period / bin_width - 3;
 
     time = readmatrix(filename, 'Range', '1:1');
+    time = time(1:round(1e6/bin_width));
     data = readmatrix(filename, 'Range', '2:2');
+    data = data(1:round(1e6/bin_width));
     [~, index_list] = findpeaks(data, 'MINPEAKHEIGHT', 1, 'MINPEAKDISTANCE', MINPEAKDISTANCE);  
     index_list = index_list(2:end - 1);
     index_first = index_list(1);
@@ -32,7 +34,7 @@ function analyze_pulse_patterns(filename, bin_width, freq, count_resol, arrange_
     gate_ratio = 320 / 800;
     pulse = zeros(1, length(index_list));
     for i = 1:length(index_list)
-        pulse(i) = sum(data(index_list(i) - period / bin_width / 2 * gate_ratio:1:index_list(i) + period / bin_width / 2 * gate_ratio));
+        pulse(i) = sum(data(round(index_list(i) - period / bin_width / 2 * gate_ratio):1:round(index_list(i) + period / bin_width / 2 * gate_ratio)));
     end
 
     log_pulse = log10(pulse);
