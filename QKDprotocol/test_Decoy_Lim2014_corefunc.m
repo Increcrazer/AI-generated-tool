@@ -4,7 +4,7 @@
     % qX: 选X基概率(efficient BB84), N: A发送的块长, f[Hz]: 频率, gate_width[s]: 门宽,
     % 3dBwidth[s]: 脉冲半高全宽
     % k = [0.7 0.1 0.0002]; 各个强度态的平均光子, pk = [0.5 0.25 0.25]; A端各个强度态的发送概率
-    % L[m]: A到B距离, alpha[dB/m]: 光路损耗
+    % L[km]: A到B距离, alpha[dB/km]: 光路损耗
     % eta_Bob_detect: Bob解码端总效率（假设通过PC使得探测器效率几乎一致）,包括滤波解码端超导等，不包括门宽
     % e_mis_X(Z): A端态制备的X(Z)基错误率，用X(Z)基对比度反算得到, f_EC: 纠错效率
     % p_ap: 后脉冲概率, dc_count[/s]: 超导单通道暗计数, 是个1x4向量（四个超导）,deadtime[s]: 死时间
@@ -19,8 +19,8 @@ epsilon_cor = 10^-15;
 epsilon_sec = 10^-15;
 qX = 0.5;
 N = 10^20;
-f = 1.25*10^5; 
-gate_width = 1/f; 
+f = 1.25e9;                 % 实际光源重频
+gate_width = 1/f;           % 演示：全周期800ps；替换为实际软件筛选窗
 width_3dB = 70*10^(-12);
 k = [0.6 0.1 0.0002]; 
 pk = [0.5 0.25 0.25];
@@ -30,9 +30,9 @@ eta_Bob_detect = 0.1;
 e_mis_X = 0.005;
 e_mis_Z = 0.005;
 f_EC = 1.16; 
-p_ap = 0.04;
-dc_count = [f*6*10^(-7) f*6*10^(-7) f*6*10^(-7) f*6*10^(-7)];
-deadtime = 0;
+p_ap = 0;                  % SNSPD后脉冲暂无标定，当前忽略
+dc_count = [f*6*10^(-7) f*6*10^(-7) f*6*10^(-7) f*6*10^(-7)]; % 仍为演示暗计数，非实测
+deadtime = 50e-9;          % 采用Li2025核心函数相同的每基有效死时间近似
 
 %%
 R_bitperpulse = zeros(1,length(L));
