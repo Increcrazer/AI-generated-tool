@@ -1,60 +1,61 @@
-% Li2025 成码率仿真示例；运行此脚本即可绘图。
-% 输入命名、距离循环和绘图风格仿照 Lim2014/test_Decoy_Lim2014_corefunc。
-addpath(fileparts(mfilename('fullpath')));
+% Li2025成码率仿真。将MATLAB当前文件夹切换到本目录后直接运行。
+% 主体布局与test_Decoy_Lim2014_corefunc一致；不自动设置目录或搜索路径。
+% 单位：距离km，损耗dB/km，频率Hz，时间s，暗计数/s。
+% Li2025只使用X/Z基信号态成钥；以下数值为演示参数。
 
+%% 输入参数
 epsilon_cor = 1e-15;
 epsilon_sec = 1e-15;
 qX = 0.5;
-N = 1e12;                     % Alice 总发送脉冲数（不是接收计数）
-f = 100e6;                    % Hz
-gate_width = 1e-9;            % s
-width_3dB = 70e-12;           % s
-k = [0.6 0.1 0.0002];         % signal, decoy, vacuum
+N = 1e12;                       % Alice总发送脉冲数，不是筛后块长
+f = 100e6;
+gate_width = 1e-9;               % 软件筛选窗宽度
+width_3dB = 70e-12;
+k = [0.6 0.1 0.0002];            % 信号、诱骗、真空
 pk = [0.5 0.25 0.25];
-L = 0:2:200;                  % km
-alpha = 0.2;                  % dB/km；自由空间也可直接令 alpha*L=总损耗dB
+L = 0:2:200;
+alpha = 0.2;
 eta_Bob_detect = 0.1;
 e_mis_X = 0.005;
 e_mis_Z = 0.005;
 f_EC = 1.16;
-p_ap = 0;                     % 超导探测器一般设置0；这里不会像原Lim脚本那样忽略此输入
-dc_count = [100 100 100 100];  % /s per detector
-deadtime = 0;
-options = struct('intensity_delta',0);
+p_ap = 0;                       % 当前忽略SNSPD后脉冲
+dc_count = [100 100 100 100];     % 各通道暗计数率，演示值
+deadtime = 0;                   % 每基共用的有效死时间，演示值
 
-R_bitperpulse = zeros(size(L));
-R_bitpersecond = zeros(size(L));
-e_obs = zeros(size(L));
-phi_X = zeros(size(L));
-phi_Z = zeros(size(L));
-nX = zeros(size(L));
-details = cell(size(L));
-for i = 1:numel(L)
-    [R_bitperpulse(i),R_bitpersecond(i),e_obs(i),phi_X(i),nX(i),phi_Z(i),details{i}] = ...
-        Decoy_Li2025_corefunc(epsilon_cor,epsilon_sec, ...
-        qX,N,f,gate_width,width_3dB,k,pk,L(i),alpha,eta_Bob_detect, ...
-        e_mis_X,e_mis_Z,f_EC,p_ap,dc_count,deadtime,options);
+%% 逐距离计算
+R_bitperpulse = zeros(1,length(L));
+R_bitpersecond = zeros(1,length(L));
+e_obs = zeros(1,length(L));
+phi_X = zeros(1,length(L));
+phi_Z = zeros(1,length(L));
+nX = zeros(1,length(L));
+
+for i = 1:length(L)
+    [R_bitperpulse(i), R_bitpersecond(i), e_obs(i), phi_X(i), nX(i), phi_Z(i)] = ...
+        Decoy_Li2025_corefunc ...
+            (epsilon_cor, epsilon_sec, ...
+             qX, N, f, gate_width, width_3dB, ...
+             k, pk, ...
+             L(i), alpha, eta_Bob_detect, ...
+             e_mis_X, e_mis_Z, f_EC, ...
+             p_ap, dc_count, deadtime);
 end
 
-fprintf('First distance: %.0f km, key=%g bit, rate=%.6g bit/pulse (%.6g bit/s)\n', ...
-    L(1),details{1}.l,R_bitperpulse(1),R_bitpersecond(1));
-fprintf('Security: epsilon_sec=%.3g, xi=%.3g, total epsilon=%.3g\n', ...
-    details{1}.security.epsilon_sec_used,details{1}.security.xi, ...
-    details{1}.security.epsilon_total);
-
+%% 绘图
 figure('Color','white','Position',[100 100 800 600]);
 semilogy(L,R_bitperpulse,'LineWidth',2.5,'Color',[0 0.4470 0.7410]);
 grid on;
-xlabel('Distance (km)');
-ylabel('Secret key rate (bit/pulse)');
-title('Li 2025 finite-key analysis: signal states in X and Z');
-set(gca,'FontSize',12,'LineWidth',1.5,'YMinorTick','on','XMinorTick','on');
+xlabel('Distance (km)','FontSize',14,'FontWeight','bold');
+ylabel('Secret key rate (bit/pulse)','FontSize',14,'FontWeight','bold');
+title('Li2025 key rate vs distance','FontSize',16,'FontWeight','bold');
 
-% 实测使用方式（须改成自己当前块的计数）：
-% measured = struct('n_X',[Nsx,Ndx,N0x], 'n_Z',[Nsz,Ndz,N0z], ...
-%                   'm_X',[Msx,Mdx,M0x], 'm_Z',[Msz,Mdz,M0z]);
-% options.counts = measured;
-% options.lambda_EC = dropLen;  % 两基信号态总纠错泄露；不包括已单独减去的安全项
-% [R, R_Hz, eX, phiX, nX, phiZ, result] = Decoy_Li2025_corefunc( ...
-%     epsilon_cor,epsilon_sec,qX,N,f,gate_width,width_3dB,k,pk, ...
-%     0,1,eta_Bob_detect,e_mis_X,e_mis_Z,f_EC,p_ap,dc_count,deadtime,options);
+ax = gca;
+ax.FontSize = 12;
+ax.LineWidth = 1.5;
+ax.YScale = 'log';
+ax.YMinorTick = 'on';
+ax.XMinorTick = 'on';
+
+% 光强波动、自定义安全参数和实测计数仍可通过第19个输入options指定。
+% 第7个输出detail可查看中间统计量；具体调用示例见README.md。
