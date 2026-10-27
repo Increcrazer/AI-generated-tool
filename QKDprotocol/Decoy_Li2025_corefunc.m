@@ -1,8 +1,10 @@
-function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX, phi_Z, detail] = ...
-    Decoy_Li2025_corefunc(epsilon_cor, epsilon_sec, ...
-    qX, N, f, gate_width, width_3dB, k, pk, ...
-    L, alpha, eta_Bob_detect, e_mis_X, e_mis_Z, f_EC, ...
-    p_ap, dc_count, deadtime, options)
+function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX, phi_Z, detail] = Decoy_Li2025_corefunc ...
+            (epsilon_cor, epsilon_sec, ...
+             qX, N, f, gate_width, width_3dB, ...
+             k, pk, ...
+             L, alpha, eta_Bob_detect, ...
+             e_mis_X, e_mis_Z, f_EC, ...
+             p_ap, dc_count, deadtime, options)
 %DECOY_LI2025_COREFUNC Li et al., Nature 640 (2025), Eqs. (10)-(21).
 % DOI: 10.1038/s41586-025-08739-z.
 % 输入顺序沿用 Decoy_Lim2014_corefunc；每次处理一个距离/数据块。
@@ -29,49 +31,41 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX, phi_Z, detail] = ...
 % 或诱骗态错误数转移分支。光强区间失效概率不包含在式(21)中。
 % 模型p_ap增加p_ap*D个点击，其中一半为误码；每基共用有效死时间修正。
 
+    %% 输入参数检查
     if nargin<19 || isempty(options), options=struct(); end
-    validateattributes(epsilon_cor,{'numeric'},{'real','finite','scalar','>',0,'<',1});
-    validateattributes(epsilon_sec,{'numeric'},{'real','finite','scalar','>',0,'<',1});
-    validateattributes(qX,{'numeric'},{'real','finite','scalar','>',0,'<',1});
-    validateattributes(N,{'numeric'},{'real','finite','scalar','positive'});
-    validateattributes(f,{'numeric'},{'real','finite','scalar','positive'});
-    validateattributes(k,{'numeric'},{'real','finite','vector','numel',3,'nonnegative'});
-    validateattributes(pk,{'numeric'},{'real','finite','vector','numel',3,'positive'});
-    validateattributes(f_EC,{'numeric'},{'real','finite','scalar','>=',1});
+    validate_inputs(epsilon_cor,epsilon_sec,qX,N,f,k,pk,f_EC,options);
     k=reshape(k,1,3); pk=reshape(pk,1,3);
-    assert(abs(sum(pk)-1)<1e-12,'Li2025:Probabilities','sum(pk) must equal 1.');
-    assert(k(1)>k(2) && k(2)>k(3),'Li2025:Intensities','Require mu>nu>w>=0.');
-    assert(isstruct(options) && isscalar(options),'Li2025:Options','options must be a scalar struct.');
-    allowed={'intensity_delta','k_bounds','qX_Bob','epsilon_hat','epsilon_PA', ...
-        'xi','counts','lambda_EC'};
-    assert(all(ismember(fieldnames(options),allowed)),'Li2025:Options','Unknown options field.');
+
+    %% 基矢选择概率、安全参数和光源界
     qX_Bob=get_option(options,'qX_Bob',qX);
     validateattributes(qX_Bob,{'numeric'},{'real','finite','scalar','>',0,'<',1});
-    P_basis=[qX*qX_Bob,(1-qX)*(1-qX_Bob)];
+    qZ=1-qX; qZ_Bob=1-qX_Bob;
+    P_basis=[qX*qX_Bob,qZ*qZ_Bob];
     security=calculate_security(epsilon_cor,epsilon_sec,options);
     [k_bounds,coeff]=calculate_source_bounds(k,options);
 
+    %% 光路效率、探测计数和误码计数
     if isfield(options,'counts')
-        counts=options.counts;
-        names={'n_X','n_Z','m_X','m_Z'};
-        assert(isstruct(counts) && isscalar(counts) && all(isfield(counts,names)), ...
-            'Li2025:Counts','counts needs n_X,n_Z,m_X,m_Z.');
-        for i=1:numel(names)
-            value=counts.(names{i});
-            validateattributes(value,{'numeric'}, ...
-                {'real','finite','vector','numel',3,'nonnegative','integer'});
-            counts.(names{i})=reshape(value,1,3);
-        end
+        counts=validate_observed_counts(options.counts);
         input_mode='observed_counts'; model=struct();
     else
-        [counts,model]=calculate_counts(qX,N,f,gate_width,width_3dB,k,pk, ...
-            L,alpha,eta_Bob_detect,e_mis_X,e_mis_Z,p_ap,dc_count,deadtime,qX_Bob);
+        validate_model_inputs(gate_width,width_3dB,L,alpha,eta_Bob_detect, ...
+            e_mis_X,e_mis_Z,p_ap,dc_count,deadtime);
+        eta_ch=10^(-alpha*L/10);
+        [~,width_eff]=gaussian_pulse_analysis(width_3dB,gate_width);
+        eta_sys=eta_ch*eta_Bob_detect*width_eff;
+        [counts,model]=calculate_counts(qX,N,f,gate_width,k,pk,eta_sys, ...
+            width_eff,e_mis_X,e_mis_Z,p_ap,dc_count,deadtime,qX_Bob);
         input_mode='model_typical_counts';
     end
-    n=[counts.n_X;counts.n_Z]; m=[counts.m_X;counts.m_Z];
+    n_X=counts.n_X; n_Z=counts.n_Z;
+    m_X=counts.m_X; m_Z=counts.m_Z;
+    n=[n_X;n_Z]; m=[m_X;m_Z];
     assert(all(m(:)<=n(:)) && sum(n(:))<=N*(1+1e-12), ...
         'Li2025:Counts','Need 0<=errors<=detections and sum(detections)<=N.');
-    nX=sum(n(1,:)); nZ=sum(n(2,:));
+    nX=sum(n_X); nZ=sum(n_Z);
+
+    %% 信号态QBER和纠错泄露量
     e_signal=[calculate_ratio(m(1,1),n(1,1)),calculate_ratio(m(2,1),n(2,1))];
     e_obs=e_signal(1);
     if isfield(options,'lambda_EC')
@@ -81,7 +75,7 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX, phi_Z, detail] = ...
         lambda_EC=f_EC*sum(n(:,1)'.*binary_entropy(e_signal));
     end
 
-    % (3)-(6): observed -> expectation bounds. xi is ONE-SIDED failure probability.
+    %% 观测计数到期望计数界：式(3)-(6)，xi为单侧失败概率
     expected_lower=zeros(2,3); expected_upper=zeros(2,3);
     for basis=1:2
         for intensity=1:3
@@ -89,7 +83,7 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX, phi_Z, detail] = ...
                 calculate_expected_bounds(n(basis,intensity),security.xi,N);
         end
     end
-    % (12): lower EXPECTED single-photon counts, SIGNAL source only.
+    %% 信号态单光子期望数与实际数下界：式(12)-(15)
     expected_n1_lower=zeros(1,2); n1_real_lower=zeros(1,2);
     for basis=1:2
         probability=pk*P_basis(basis);
@@ -100,7 +94,8 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX, phi_Z, detail] = ...
         n1_real_lower(basis)=min(n(basis,1), ...
             calculate_real_lower(expected_n1_lower(basis),security.xi));
     end
-    % (16): actual single-photon errors <= observed total SIGNAL errors.
+    %% 单光子误码数与相位误码率：式(16)-(19)
+    % Actual single-photon errors <= observed total SIGNAL errors.
     m1_real_upper=m(:,1)';
     e1_bit_upper=ones(1,2);
     for basis=1:2
@@ -111,7 +106,8 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX, phi_Z, detail] = ...
     % (17)-(19): Z bit errors -> X phase errors; X bit errors -> Z phase errors.
     phi_X=calculate_phi(e1_bit_upper(2),n1_real_lower(2),n1_real_lower(1),security.xi);
     phi_Z=calculate_phi(e1_bit_upper(1),n1_real_lower(1),n1_real_lower(2),security.xi);
-    % (20): sqrt(2)*epsilon_PA*epsilon_hat in denominator (NOT 2*sqrt(2)).
+    %% 密钥长度和成码率：式(20)
+    % sqrt(2)*epsilon_PA*epsilon_hat in denominator (NOT 2*sqrt(2)).
     privacy_bits=n1_real_lower.*(1-binary_entropy([phi_X,phi_Z]));
     correction_bits=2*(1-log2(epsilon_cor)) + ...
         4*(-0.5-log2(security.epsilon_PA)-log2(security.epsilon_hat));
@@ -119,6 +115,7 @@ function [R_bitperpulse, R_bitpersecond, e_obs, phi_X, nX, phi_Z, detail] = ...
     l=max(0,floor(min(sum(n(:,1)),l_raw)));
     R_bitperpulse=l/N; R_bitpersecond=R_bitperpulse*f;
 
+    %% 中间统计量与状态输出
     detail=struct('l',l,'l_raw',l_raw,'input_mode',input_mode, ...
         'n_X',n(1,:),'n_Z',n(2,:),'m_X',m(1,:),'m_Z',m(2,:), ...
         'nX',nX,'nZ',nZ,'e_signal',e_signal,'P_basis',P_basis, ...
@@ -272,21 +269,9 @@ function phi=calculate_phi(bit_error,c,d,xi)
     phi=min(0.5,b+gamma);
 end
 
-function [counts,model]=calculate_counts(qA,N,f,gate_width,width_3dB,k,pk, ...
-    L,alpha,eta_Bob_detect,eX,eZ,p_ap,dc_count,deadtime,qB)
-    validateattributes(gate_width,{'numeric'},{'real','finite','scalar','positive'});
-    validateattributes(width_3dB,{'numeric'},{'real','finite','scalar','positive'});
-    validateattributes(L,{'numeric'},{'real','finite','scalar','nonnegative'});
-    validateattributes(alpha,{'numeric'},{'real','finite','scalar','nonnegative'});
-    validateattributes(eta_Bob_detect,{'numeric'},{'real','finite','scalar','>=',0,'<=',1});
-    validateattributes(eX,{'numeric'},{'real','finite','scalar','>=',0,'<=',0.5});
-    validateattributes(eZ,{'numeric'},{'real','finite','scalar','>=',0,'<=',0.5});
-    validateattributes(p_ap,{'numeric'},{'real','finite','scalar','>=',0,'<=',1});
-    validateattributes(deadtime,{'numeric'},{'real','finite','scalar','nonnegative'});
-    validateattributes(dc_count,{'numeric'},{'real','finite','vector','numel',4,'nonnegative'});
-    sigma=width_3dB/(2*sqrt(2*log(2)));
-    width_eff=erf(gate_width/(2*sqrt(2)*sigma));
-    eta_sys=10^(-alpha*L/10)*eta_Bob_detect*width_eff;
+function [counts,model]=calculate_counts(qA,N,f,gate_width,k,pk,eta_sys, ...
+    width_eff,eX,eZ,p_ap,dc_count,deadtime,qB)
+% Simplified detector model, shared in form with the Lim2014 implementation.
     dc_count=reshape(dc_count,1,4);
     p_dc=[mean(dc_count(1:2)),mean(dc_count(3:4))]*gate_width;
     assert(all(p_dc<0.5),'Li2025:DarkCounts','Per-detector dark probability must be <0.5.');
@@ -305,6 +290,55 @@ function [counts,model]=calculate_counts(qA,N,f,gate_width,width_3dB,k,pk, ...
     end
     counts=struct('n_X',n(1,:),'n_Z',n(2,:),'m_X',m(1,:),'m_Z',m(2,:));
     model=struct('eta_sys',eta_sys,'width_eff',width_eff,'p_dc',p_dc,'Cdt',Cdt);
+end
+
+function [sigma,energy_ratio]=gaussian_pulse_analysis(fwhm,gate_width)
+% Gaussian pulse fraction within the centered software window.
+    sigma=fwhm/(2*sqrt(2*log(2)));
+    energy_ratio=erf(gate_width/(2*sqrt(2)*sigma));
+end
+
+function validate_inputs(epsilon_cor,epsilon_sec,qX,N,f,k,pk,f_EC,options)
+    validateattributes(epsilon_cor,{'numeric'},{'real','finite','scalar','>',0,'<',1});
+    validateattributes(epsilon_sec,{'numeric'},{'real','finite','scalar','>',0,'<',1});
+    validateattributes(qX,{'numeric'},{'real','finite','scalar','>',0,'<',1});
+    validateattributes(N,{'numeric'},{'real','finite','scalar','positive'});
+    validateattributes(f,{'numeric'},{'real','finite','scalar','positive'});
+    validateattributes(k,{'numeric'},{'real','finite','vector','numel',3,'nonnegative'});
+    validateattributes(pk,{'numeric'},{'real','finite','vector','numel',3,'positive'});
+    validateattributes(f_EC,{'numeric'},{'real','finite','scalar','>=',1});
+    assert(abs(sum(pk)-1)<1e-12,'Li2025:Probabilities','sum(pk) must equal 1.');
+    assert(k(1)>k(2) && k(2)>k(3),'Li2025:Intensities','Require mu>nu>w>=0.');
+    assert(isstruct(options) && isscalar(options),'Li2025:Options','options must be a scalar struct.');
+    allowed={'intensity_delta','k_bounds','qX_Bob','epsilon_hat','epsilon_PA', ...
+        'xi','counts','lambda_EC'};
+    assert(all(ismember(fieldnames(options),allowed)),'Li2025:Options','Unknown options field.');
+end
+
+function validate_model_inputs(gate_width,width_3dB,L,alpha,eta_Bob_detect, ...
+    eX,eZ,p_ap,dc_count,deadtime)
+    validateattributes(gate_width,{'numeric'},{'real','finite','scalar','positive'});
+    validateattributes(width_3dB,{'numeric'},{'real','finite','scalar','positive'});
+    validateattributes(L,{'numeric'},{'real','finite','scalar','nonnegative'});
+    validateattributes(alpha,{'numeric'},{'real','finite','scalar','nonnegative'});
+    validateattributes(eta_Bob_detect,{'numeric'},{'real','finite','scalar','>=',0,'<=',1});
+    validateattributes(eX,{'numeric'},{'real','finite','scalar','>=',0,'<=',0.5});
+    validateattributes(eZ,{'numeric'},{'real','finite','scalar','>=',0,'<=',0.5});
+    validateattributes(p_ap,{'numeric'},{'real','finite','scalar','>=',0,'<=',1});
+    validateattributes(deadtime,{'numeric'},{'real','finite','scalar','nonnegative'});
+    validateattributes(dc_count,{'numeric'},{'real','finite','vector','numel',4,'nonnegative'});
+end
+
+function counts=validate_observed_counts(counts)
+    names={'n_X','n_Z','m_X','m_Z'};
+    assert(isstruct(counts) && isscalar(counts) && all(isfield(counts,names)), ...
+        'Li2025:Counts','counts needs n_X,n_Z,m_X,m_Z.');
+    for i=1:numel(names)
+        value=counts.(names{i});
+        validateattributes(value,{'numeric'}, ...
+            {'real','finite','vector','numel',3,'nonnegative','integer'});
+        counts.(names{i})=reshape(value,1,3);
+    end
 end
 
 function result=binary_entropy(p)
